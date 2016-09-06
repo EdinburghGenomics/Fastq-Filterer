@@ -1,6 +1,6 @@
 //
-//  main.c
-//  Fastq-Trimmer
+//  filter.c
+//  Fastq-Filterer
 //
 //  Created by Murray Wham on 05/09/2016.
 //  Copyright (c) 2016 Edinburgh Genomics (see ../LICENCE)
@@ -20,14 +20,14 @@ int threshold;
 
 
 static void _log(char* msg) {
-    printf("[fastq_trimmer] %s\n", msg);
+    printf("[fastq_filterer] %s\n", msg);
 }
 
 
 static void help_msg() {
     printf(
-"Usage: fastq_trimmer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_trimmed.fastq> --o2 <r2_trimmed.fastq>]\
---threshold <trim_threshold>\n\
+"Usage: fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_filtered.fastq> --o2 <r2_filtered.fastq>]\
+--threshold <filter_threshold>\n\
 .fastq.gz files can also be input, in which case zlib compression will be used (note: compression \
 is decided based on the file extension of the input file, not the output)\n"
     );
@@ -245,13 +245,13 @@ static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r
     if (r2o_path == NULL) {
         r2o_path = build_output_path(r2i_path, file_ext);
     }
-    printf("[fastq_trimmer] Input R1 file: %s\n", r1i_path);
-    printf("[fastq_trimmer] Input R2 file: %s\n", r2i_path);
-    printf("[fastq_trimmer] Output R1 file: %s\n", r1o_path);
-    printf("[fastq_trimmer] Output R2 file: %s\n", r2o_path);
+    printf("[fastq_filterer] Input R1 file: %s\n", r1i_path);
+    printf("[fastq_filterer] Input R2 file: %s\n", r2i_path);
+    printf("[fastq_filterer] Output R1 file: %s\n", r1o_path);
+    printf("[fastq_filterer] Output R2 file: %s\n", r2o_path);
     
     int gz;
-    printf("[fastq_trimmer] Using file extension '%s'\n", file_ext);
+    printf("[fastq_filterer] Using file extension '%s'\n", file_ext);
     
     char* gz_ext = strstr(file_ext, ".gz");
     if (gz_ext != NULL) {
@@ -321,6 +321,6 @@ int main(int argc, const char* argv[]) {
     if (r1i == NULL || r2i == NULL) exit(1);
     
     int exit_status = filter_fastqs(r1i, r2i, r1o, r2o);
-    printf("[fastq_trimmer] Completed with exit status %i\n", exit_status);
+    printf("[fastq_filterer] Completed with exit status %i\n", exit_status);
     return exit_status;
 }
