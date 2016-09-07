@@ -1,0 +1,6 @@
+language: c
+script: make && test/run_tests.sh
+notifications:
+    email:
+        on_success: change
+        on_failure: always

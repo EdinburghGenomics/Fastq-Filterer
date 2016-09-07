@@ -1,0 +1,80 @@
+@read_1 r2 len 16
+ATGCATGCATGCATGC
+-
+#----------------
+@read_2 r2 len 5
+ATGCA
+-
+#-----
+@read_3 r2 len 11
+ATGCATGCATG
+-
+#-----------
+@read_4 r2 len 1
+A
+-
+#-
+@read_5 r2 len 15
+ATGCATGCATGCATG
+-
+#---------------
+@read_6 r2 len 6
+ATGCAT
+-
+#------
+@read_7 r2 len 12
+ATGCATGCATGC
+-
+#------------
+@read_8 r2 len 4
+ATGC
+-
+#----
+@read_9 r2 len 10
+ATGCATGCAT
+-
+#----------
+@read_10 r2 len 18
+ATGCATGCATGCATGCAT
+-
+#------------------
+@read_11 r2 len 20
+ATGCATGCATGCATGCATGC
+-
+#--------------------
+@read_12 r2 len 2
+AT
+-
+#--
+@read_13 r2 len 19
+ATGCATGCATGCATGCATG
+-
+#-------------------
+@read_14 r2 len 8
+ATGCATGC
+-
+#--------
+@read_15 r2 len 3
+ATG
+-
+#---
+@read_16 r2 len 17
+ATGCATGCATGCATGCA
+-
+#-----------------
+@read_17 r2 len 7
+ATGCATG
+-
+#-------
+@read_18 r2 len 14
+ATGCATGCATGCAT
+-
+#--------------
+@read_19 r2 len 13
+ATGCATGCATGCA
+-
+#-------------
+@read_20 r2 len 9
+ATGCATGCA
+-
+#---------

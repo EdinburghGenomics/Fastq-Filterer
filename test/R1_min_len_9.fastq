@@ -1,0 +1,28 @@
+@read_1 r1 len 12
+ATGCATGCATGC
++
+#------------
+@read_3 r1 len 16
+ATGCATGCATGCATGC
++
+#----------------
+@read_7 r1 len 15
+ATGCATGCATGCATG
++
+#---------------
+@read_11 r1 len 10
+ATGCATGCAT
++
+#----------
+@read_13 r1 len 19
+ATGCATGCATGCATGCATG
++
+#-------------------
+@read_19 r1 len 14
+ATGCATGCATGCAT
++
+#--------------
+@read_20 r1 len 9
+ATGCATGCA
++
+#---------

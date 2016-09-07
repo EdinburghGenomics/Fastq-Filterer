@@ -26,7 +26,7 @@ static void _log(char* msg) {
 
 static void help_msg() {
     printf(
-"Usage: fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_filtered.fastq> --o2 <r2_filtered.fastq>]\
+"Usage: fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_filtered.fastq> --o2 <r2_filtered.fastq>] \
 --threshold <filter_threshold>\n\
 .fastq.gz files can also be input, in which case zlib compression will be used (note: compression \
 is decided based on the file extension of the input file, not the output)\n"
@@ -140,8 +140,8 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
         
         char* r2_header = readln(r2i);  // @read_1 2
         char* r2_seq = readln(r2i);     // ATGCATGC
-        char* r2_strand = readln(r2i);  //
-        char* r2_qual = readln(r2i);
+        char* r2_strand = readln(r2i);  // -
+        char* r2_qual = readln(r2i);    // #--------
         
         if (*r1_header == '\0') {
             return 0;
@@ -240,9 +240,11 @@ static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r
     char* file_ext = find_file_ext(r1i_path);
     
     if (r1o_path == NULL) {
+        _log("No o1 argument given - deriving from i1");
         r1o_path = build_output_path(r1i_path, file_ext);
     }
     if (r2o_path == NULL) {
+        _log("No o2 argument given - deriving from i2");
         r2o_path = build_output_path(r2i_path, file_ext);
     }
     printf("[fastq_filterer] Input R1 file: %s\n", r1i_path);
@@ -270,26 +272,23 @@ static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r
 }
 
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
     
     int arg;
     char *r1i = NULL, *r2i = NULL, *r1o = NULL, *r2o = NULL;
     
+    static struct option args[] = {
+        {"help", no_argument, 0, 'h'},
+        {"threshold", required_argument, 0, 't'},
+        {"i1", required_argument, 0, 'r'},
+        {"i2", required_argument, 0, 's'},
+        {"o1", required_argument, 0, 'i'},
+        {"o2", required_argument, 0, 'j'},
+        {0, 0, 0, 0}
+    };
+    int opt_idx = 0;
     
-    while (1) {
-        static struct option args[] = {
-            {"help", no_argument, 0, 'h'},
-            {"threshold", required_argument, 0, 't'},
-            {"i1", required_argument, 0, 'r'},
-            {"i2", required_argument, 0, 's'},
-            {"o1", optional_argument, 0, 'i'},
-            {"o2", optional_argument, 0, 'j'}
-        };
-        int* opt_idx = 0;
-        arg = getopt_long(argc, argv, "h::r:s:i:j:", args, opt_idx);
-        
-        if (arg == -1) break;
-        
+    while ((arg = getopt_long(argc, argv, "h:t:r:s:i:j:", args, &opt_idx)) != -1) {
         switch(arg) {
             case 'r':
                 r1i = malloc(sizeof optarg);
@@ -312,14 +311,15 @@ int main(int argc, const char* argv[]) {
                 exit(0);
                 break;
             case 't':
-                threshold = (int)optarg;
+                threshold = atoi(optarg);
+                break;
             default:
                 exit(1);
         }
     }
-    
     if (r1i == NULL || r2i == NULL) exit(1);
     
+    printf("[fastq_filterer] Filter threshold: %i\n", threshold);
     int exit_status = filter_fastqs(r1i, r2i, r1o, r2o);
     printf("[fastq_filterer] Completed with exit status %i\n", exit_status);
     return exit_status;
