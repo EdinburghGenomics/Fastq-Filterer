@@ -47,18 +47,23 @@ static char* readln(FILE* f) {
     int _block_size = initial_block_size;
     char* line;
     line = malloc(sizeof (char) * _block_size);
+    line[0] = '\0';
     
-    while (line[strlen(line) - 1] != '\n') {
+    do {
         _block_size += block_increment;
         line = realloc(line, _block_size + 1);
-        char _line_part[block_increment];
-        
-        char* p = fgets(_line_part, block_increment, f);
-        if (p == NULL) {
+        char* _line_part = malloc(sizeof (char) * block_increment);
+        _line_part[0] = '\0';
+
+        if (fgets(_line_part, block_increment, f)) {
+            strcat(line, _line_part);
+            free(_line_part);
+        } else {
+            free(_line_part);
             return line;
         }
-        strcat(line, _line_part);
-    }
+    } while (line[strlen(line) - 1] != '\n');
+    
     return line;
 }
 
@@ -74,18 +79,23 @@ static char* readlngz(gzFile* f) {
     int _block_size = initial_block_size;
     char* line;
     line = malloc(sizeof (char) * _block_size);
-    
-    while (line[strlen(line) - 1] != '\n') {
+    line[0] = '\0';
+
+    do {
         _block_size += block_increment;
         line = realloc(line, _block_size + 1);
-        char _line_part[block_increment];
-        
-        char* p = gzgets(f, _line_part, block_increment);
-        if (p == NULL) {
+        char* _line_part = malloc(sizeof (char) * block_increment);
+        _line_part[0] = '\0';
+
+        if (gzgets(f, _line_part, block_increment)) {
+            strcat(line, _line_part);
+            free(_line_part);
+        } else {
+            free(_line_part);
             return line;
         }
-        strcat(line, _line_part);
-    }
+    } while (line[strlen(line) - 1] != '\n');
+
     return line;
 }
 
@@ -106,7 +116,8 @@ static char* find_file_ext(char* file_path) {
         ".fq.gz"
     };
     
-    for (int i=0; i<4; i++) {
+    int i;
+    for (i=0; i<4; i++) {
         ext = strstr(file_path, extensions[i]);
         if (ext != NULL) {
             return ext;
@@ -132,16 +143,26 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
     FILE* r1o = fopen(r1o_path, "w");
     FILE* r2o = fopen(r2o_path, "w");
     
+    char* r1_header;
+    char* r1_seq;
+    char* r1_strand;
+    char* r1_qual;
+
+    char* r2_header;
+    char* r2_seq;
+    char* r2_strand;
+    char* r2_qual;
+
     while (1) {
-        char* r1_header = readln(r1i);  // @read_1 1
-        char* r1_seq = readln(r1i);     // ATGCATGC
-        char* r1_strand = readln(r1i);  // +
-        char* r1_qual = readln(r1i);    // #--------
-        
-        char* r2_header = readln(r2i);  // @read_1 2
-        char* r2_seq = readln(r2i);     // ATGCATGC
-        char* r2_strand = readln(r2i);  // -
-        char* r2_qual = readln(r2i);    // #--------
+        r1_header = readln(r1i);  // @read_1 1
+        r1_seq = readln(r1i);     // ATGCATGC
+        r1_strand = readln(r1i);  // +
+        r1_qual = readln(r1i);    // #--------
+
+        r2_header = readln(r2i);  // @read_1 2
+        r2_seq = readln(r2i);     // ATGCATGC
+        r2_strand = readln(r2i);  // -
+        r2_qual = readln(r2i);    // #--------
         
         if (*r1_header == '\0') {
             return 0;
@@ -179,16 +200,26 @@ static int read_gz_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* 
     gzFile* r1o = gzopen(r1o_path, "w");
     gzFile* r2o = gzopen(r2o_path, "w");
     
+    char* r1_header;
+    char* r1_seq;
+    char* r1_strand;
+    char* r1_qual;
+
+    char* r2_header;
+    char* r2_seq;
+    char* r2_strand;
+    char* r2_qual;
+
     while (1) {
-        char* r1_header = readlngz(r1i);  // @read_1 1
-        char* r1_seq = readlngz(r1i);     // ATGCATGC
-        char* r1_strand = readlngz(r1i);  // +
-        char* r1_qual = readlngz(r1i);    // #--------
-        
-        char* r2_header = readlngz(r2i);  // @read_1 2
-        char* r2_seq = readlngz(r2i);     // ATGCATGC
-        char* r2_strand = readlngz(r2i);  // -
-        char* r2_qual = readlngz(r2i);    // #--------
+        r1_header = readlngz(r1i);  // @read_1 1
+        r1_seq = readlngz(r1i);     // ATGCATGC
+        r1_strand = readlngz(r1i);  // +
+        r1_qual = readlngz(r1i);    // #--------
+
+        r2_header = readlngz(r2i);  // @read_1 2
+        r2_seq = readlngz(r2i);     // ATGCATGC
+        r2_strand = readlngz(r2i);  // -
+        r2_qual = readlngz(r2i);    // #--------
         
         if (*r1_header == '\0') {
             gzflush(r1o, Z_FINISH);
