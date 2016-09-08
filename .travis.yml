@@ -1,5 +1,5 @@
 language: c
-script: make && sh test/run_tests.sh
+script: make && bash test/run_tests.sh
 notifications:
     email:
         on_success: change
