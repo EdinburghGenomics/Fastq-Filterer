@@ -15,6 +15,7 @@
 
 #define initial_block_size 64
 #define block_increment 64
+#define unsafe_block_size 4096
 
 int threshold;
 
@@ -34,7 +35,14 @@ is decided based on the file extension of the input file, not the output)\n"
 }
 
 
-static char* readln(FILE* f) {
+static char* readln(gzFile* f) {
+    char* line = malloc(unsafe_block_size);
+    gzgets(f, line, unsafe_block_size);
+    return line;
+}
+
+
+static char* readln_safe(FILE* f) {
     /*
      Read a line from a file. Each time this function is called on a file, the next
      line is read. Memory is dynamically allocated to allow reading of lines of any
@@ -49,38 +57,6 @@ static char* readln(FILE* f) {
     line = malloc(sizeof (char) * _block_size);
     line[0] = '\0';
     
-    do {
-        _block_size += block_increment;
-        line = realloc(line, _block_size + 1);
-        char* _line_part = malloc(sizeof (char) * block_increment);
-        _line_part[0] = '\0';
-
-        if (fgets(_line_part, block_increment, f)) {
-            strcat(line, _line_part);
-            free(_line_part);
-        } else {
-            free(_line_part);
-            return line;
-        }
-    } while (line[strlen(line) - 1] != '\n');
-    
-    return line;
-}
-
-
-static char* readlngz(gzFile* f) {
-    /*
-     Equivalent of _readln for gz compressed files.
-     
-     :input gzFile* f: The gz file to read from
-     :output: As _readln (decompressed)
-     */
-    
-    int _block_size = initial_block_size;
-    char* line;
-    line = malloc(sizeof (char) * _block_size);
-    line[0] = '\0';
-
     do {
         _block_size += block_increment;
         line = realloc(line, _block_size + 1);
@@ -138,8 +114,8 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
      :input char* r2_filtered: Path to R1_filtered.fastq output file
      */
     
-    FILE* r1i = fopen(r1i_path, "r");
-    FILE* r2i = fopen(r2i_path, "r");
+    gzFile* r1i = gzopen(r1i_path, "r");
+    gzFile* r2i = gzopen(r2i_path, "r");
     FILE* r1o = fopen(r1o_path, "w");
     FILE* r2o = fopen(r2o_path, "w");
     
@@ -191,64 +167,6 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
 }
 
 
-static int read_gz_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o_path) {
-    /*
-     Equivalent of read_fastqs, but for gzipped fastqs. Outputs gz compressed fastqs.
-     */
-    gzFile* r1i = gzopen(r1i_path, "rb");
-    gzFile* r2i = gzopen(r2i_path, "rb");
-    gzFile* r1o = gzopen(r1o_path, "w");
-    gzFile* r2o = gzopen(r2o_path, "w");
-    
-    char* r1_header;
-    char* r1_seq;
-    char* r1_strand;
-    char* r1_qual;
-
-    char* r2_header;
-    char* r2_seq;
-    char* r2_strand;
-    char* r2_qual;
-
-    while (1) {
-        r1_header = readlngz(r1i);  // @read_1 1
-        r1_seq = readlngz(r1i);     // ATGCATGC
-        r1_strand = readlngz(r1i);  // +
-        r1_qual = readlngz(r1i);    // #--------
-
-        r2_header = readlngz(r2i);  // @read_1 2
-        r2_seq = readlngz(r2i);     // ATGCATGC
-        r2_strand = readlngz(r2i);  // -
-        r2_qual = readlngz(r2i);    // #--------
-        
-        if (*r1_header == '\0') {
-            gzflush(r1o, Z_FINISH);
-            gzflush(r2o, Z_FINISH);
-            return 0;
-        } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
-            gzputs(r1o, r1_header);
-            gzputs(r1o, r1_seq);
-            gzputs(r1o, r1_strand);
-            gzputs(r1o, r1_qual);
-            
-            gzputs(r2o, r2_header);
-            gzputs(r2o, r2_seq);
-            gzputs(r2o, r2_strand);
-            gzputs(r2o, r2_qual);
-        }
-        free(r1_header);
-        free(r1_seq);
-        free(r1_strand);
-        free(r1_qual);
-        
-        free(r2_header);
-        free(r2_seq);
-        free(r2_strand);
-        free(r2_qual);
-    }
-}
-
-
 static char* build_output_path(char* input_path, char* file_ext) {
     /*
      Converts, e.g, basename.fastq to basename_filtered.fastq. Used when output fastq paths are not specified.
@@ -272,34 +190,18 @@ static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r
     
     if (r1o_path == NULL) {
         _log("No o1 argument given - deriving from i1");
-        r1o_path = build_output_path(r1i_path, file_ext);
+        r1o_path = build_output_path(r1i_path, ".fastq");
     }
     if (r2o_path == NULL) {
         _log("No o2 argument given - deriving from i2");
-        r2o_path = build_output_path(r2i_path, file_ext);
+        r2o_path = build_output_path(r2i_path, ".fastq");
     }
     printf("[fastq_filterer] Input R1 file: %s\n", r1i_path);
     printf("[fastq_filterer] Input R2 file: %s\n", r2i_path);
     printf("[fastq_filterer] Output R1 file: %s\n", r1o_path);
     printf("[fastq_filterer] Output R2 file: %s\n", r2o_path);
     
-    int gz;
-    printf("[fastq_filterer] Using file extension '%s'\n", file_ext);
-    
-    char* gz_ext = strstr(file_ext, ".gz");
-    if (gz_ext != NULL) {
-        _log(".gz file extension detected - using gz file io");
-        gz = 1;
-    } else {
-        _log("no .gz file extension detected - using basic file io");
-        gz = 0;
-    }
-    
-    if (gz == 1) {
-        return read_gz_fastqs(r1i_path, r2i_path, r1o_path, r2o_path);
-    } else {
-        return read_fastqs(r1i_path, r2i_path, r1o_path, r2o_path);
-    }
+    return read_fastqs(r1i_path, r2i_path, r1o_path, r2o_path);
 }
 
 
