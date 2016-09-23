@@ -10,3 +10,6 @@ build: filter.o
 
 clean:
 	rm $(PROGRAM_NAME) filter.o
+
+check:
+	bash test/run_tests.sh
