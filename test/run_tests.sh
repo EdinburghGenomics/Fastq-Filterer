@@ -17,30 +17,31 @@ function compare_files {
 }
 
 
-function compare_gz_files {
-    gzip -dc $1 > ${1}_decompressed
-    gzip -dc $2 > ${2}_decompressed
-
-    compare_files ${1}_decompressed ${2}_decompressed
-    rm ${1}_decompressed ${2}_decompressed
-}
-
-
 echo "Testing non-compressed"
-$filterer --i1 $scriptpath/R1.fastq --i2 $scriptpath/R2.fastq --o1 $scriptpath/R1_filtered.fastq --o2 $scriptpath/R2_filtered.fastq --threshold 9
+$filterer --i1 $scriptpath/uncompressed_R1.fastq --i2 $scriptpath/uncompressed_R2.fastq --o1 $scriptpath/uncompressed_R1_filtered.fastq --o2 $scriptpath/uncompressed_R2_filtered.fastq --threshold 9
 echo
-compare_files $scriptpath/R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
+compare_files $scriptpath/uncompressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
 echo
-compare_files $scriptpath/R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
+compare_files $scriptpath/uncompressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
 echo "______________________"
-echo
+rm $scriptpath/*filtered.fastq
 
 echo "Testing compressed"
-$filterer --i1 $scriptpath/R1.fastq.gz --i2 $scriptpath/R2.fastq.gz --o1 $scriptpath/R1_filtered.fastq.gz --o2 $scriptpath/R2_filtered.fastq.gz --threshold 9
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $scriptpath/compressed_R1_filtered.fastq --o2 $scriptpath/compressed_R2_filtered.fastq --threshold 9
 echo
-compare_gz_files $scriptpath/R1_filtered.fastq.gz $scriptpath/R1_min_len_9.fastq.gz
+compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
 echo
-compare_gz_files $scriptpath/R2_filtered.fastq.gz $scriptpath/R2_min_len_9.fastq.gz
+compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
 echo "______________________"
+rm $scriptpath/*filtered.fastq
+
+echo "Testing unsafe mode"
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $scriptpath/compressed_R1_filtered.fastq --o2 $scriptpath/compressed_R2_filtered.fastq --threshold 9 --unsafe
+echo
+compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
+echo
+compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
+echo "______________________"
+rm $scriptpath/*filtered.fastq
 
 echo "Finished tests with exit status $exit_status"
