@@ -36,6 +36,7 @@ Fastq or fastq.gz files can be read in, but output will always be uncompressed.\
 
 static char* readln_unsafe(gzFile* f) {
     char* line = malloc(unsafe_block_size);
+    line[0] = '\0';
     gzgets(f, line, unsafe_block_size);
     return line;
 }
