@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <zlib.h>
 #include <getopt.h>
+#include <time.h>
 
 #define block_size 2048
 #define unsafe_block_size 4096
@@ -19,7 +20,15 @@
 int threshold;
 
 static void _log(char* msg) {
-    printf("[fastq_filterer] %s\n", msg);
+    
+    time_t t = time(NULL);
+    struct tm* now = localtime(&t);
+    
+    printf(
+        "[%i-%i-%i %i:%i:%i][fastq_filterer] %s\n",
+        now->tm_year + 1900, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min,  now->tm_sec,
+        msg
+    );
 }
 
 
@@ -115,8 +124,12 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
         r2_strand = read_func(r2i);  // -
         r2_qual = read_func(r2i);    // #--------
         
-        if (*r1_header == '\0') {
-            return 0;
+        if (*r1_header == '\0' || *r2_header == '\0') {
+            if (*r1_header == *r2_header) {
+                return 0;
+            } else {
+                return 1;
+            }
         } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
             fputs(r1_header, r1o);
             fputs(r1_seq, r1o);
@@ -168,17 +181,20 @@ static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r
         _log("No o2 argument given - deriving from i2");
         r2o_path = build_output_path(r2i_path, ".fastq");
     }
-    printf("[fastq_filterer] Input R1 file: %s\n", r1i_path);
-    printf("[fastq_filterer] Input R2 file: %s\n", r2i_path);
-    printf("[fastq_filterer] Output R1 file: %s\n", r1o_path);
-    printf("[fastq_filterer] Output R2 file: %s\n", r2o_path);
+    
+    char* msg1 = malloc(sizeof (char) * (strlen(r1i_path) + strlen(r1o_path) + 9));
+    sprintf(msg1, "R1: %s -> %s", r1i_path, r1o_path);
+    char* msg2 = malloc(sizeof (char) * (strlen(r2i_path) + strlen(r2o_path) + 9));
+    sprintf(msg2, "R2: %s -> %s", r2i_path, r2o_path);
+    
+    _log(msg1);
+    _log(msg2);
     
     return read_fastqs(r1i_path, r2i_path, r1o_path, r2o_path);
 }
 
 
 int main(int argc, char* argv[]) {
-    
     int arg;
     char *r1i = NULL, *r2i = NULL, *r1o = NULL, *r2o = NULL;
     
@@ -228,8 +244,14 @@ int main(int argc, char* argv[]) {
     }
     if (r1i == NULL || r2i == NULL) exit(1);
     
-    printf("[fastq_filterer] Filter threshold: %i\n", threshold);
+    char* msg1 = malloc(sizeof (char) * (23));  // 19 + 4 chars, so can take a threshold up to 9999
+    sprintf(msg1, "Filter threshold: %i", threshold);
+    _log(msg1);
+    
     int exit_status = filter_fastqs(r1i, r2i, r1o, r2o);
-    printf("[fastq_filterer] Completed with exit status %i\n", exit_status);
+    char* msg2 = malloc(sizeof (char) * (31));  // 28 + 3 chars, so can take an exit status up to 999
+    sprintf(msg2, "Completed with exit status %i", exit_status);
+    _log(msg2);
+    
     return exit_status;
 }
