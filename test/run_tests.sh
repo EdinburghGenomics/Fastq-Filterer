@@ -44,4 +44,15 @@ compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.
 echo "______________________"
 rm $scriptpath/*filtered.fastq
 
+echo "Testing implicit output paths and output stats"
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --threshold 9 --stats_file $scriptpath/fastq_filterer.stats
+echo
+compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
+echo
+compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
+echo
+compare_files $scriptpath/fastq_filterer.stats $scriptpath/expected_fastq_filterer.stats
+echo "______________________"
+rm $scriptpath/*filtered.fastq
+
 echo "Finished tests with exit status $exit_status"
