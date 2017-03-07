@@ -1,6 +1,6 @@
 r1i test/compressed_R1.fastq.gz
 r2i test/compressed_R2.fastq.gz
-r1o test/compressed_R1_filtered.fastq
-r2o test/compressed_R2_filtered.fastq
+r1o test/R1_filtered.fastq
+r2o test/R2_filtered.fastq
 checked 20
 removed 13

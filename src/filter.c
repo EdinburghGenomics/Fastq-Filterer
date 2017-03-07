@@ -29,7 +29,7 @@ static void timestamp() {
     
     printf(
         "[%i-%i-%i %i:%i:%i][fastq_filterer] ",
-        now->tm_year + 1900, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min,  now->tm_sec
+        now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min,  now->tm_sec
     );
 }
 
@@ -176,20 +176,18 @@ static char* build_output_path(char* input_path) {
      Convert, e.g, basename.fastq to basename_filtered.fastq. Used when output fastq paths are not specified.
      */
     
-    int file_ext_len = strlen(".fastq");
-    static char filtered[10] = "_filtered";
+    int file_ext_len = 6;  // .fastq
     
     if (input_path[strlen(input_path) - 1] == 'z') {
-        file_ext_len = strlen(".fastq.gz");
+        file_ext_len = 9;  // .fastq.gz
     }
     
     size_t basename_len = strlen(input_path) - file_ext_len;
-    char* basename = malloc(sizeof (char) * basename_len);
-    strncat(basename, input_path, basename_len);
-    char* new_output_path = malloc(sizeof (char) * (basename_len + 10 + file_ext_len));
-    sprintf(new_output_path, "%s%s%s", basename, filtered, ".fastq");
-    
-    return new_output_path;
+    char* output_path = malloc(sizeof (char) * (basename_len + 15));  // _filtered.fastq
+    strncpy(output_path, input_path, basename_len);
+    output_path[basename_len] = '\0';
+    strcat(output_path, "_filtered.fastq");
+    return output_path;
 }
 
 

@@ -8,51 +8,49 @@ scriptpath=$(dirname $0)
 filterer=$scriptpath/../fastq_filterer
 exit_status=0
 
-function compare_files {
-    echo "Comparing $1 and $2"
+r1o=$scriptpath/R1_filtered.fastq
+r2o=$scriptpath/R2_filtered.fastq
+
+function _compare {
     diff $1 $2
-    ex_st=$?
-    echo "Finished comparison with exit status $ex_st"
-    exit_status=$[$exit_status+$ex_st]
+    x=$?
+    echo "Compared $1 and $2 with exit status $x"
+    exit_status=$[$exit_status+$x]
+    rm $1
+}
+
+function check_outputs {
+    _compare $1 $scriptpath/R1_min_len_9.fastq
+    _compare $2 $scriptpath/R2_min_len_9.fastq
+    echo "______________________"
 }
 
 
 echo "Testing non-compressed"
-$filterer --i1 $scriptpath/uncompressed_R1.fastq --i2 $scriptpath/uncompressed_R2.fastq --o1 $scriptpath/uncompressed_R1_filtered.fastq --o2 $scriptpath/uncompressed_R2_filtered.fastq --threshold 9
-echo
-compare_files $scriptpath/uncompressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
-echo
-compare_files $scriptpath/uncompressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
-echo "______________________"
-rm $scriptpath/*filtered.fastq
+$filterer --i1 $scriptpath/uncompressed_R1.fastq --i2 $scriptpath/uncompressed_R2.fastq --o1 $r1o --o2 $r2o --threshold 9
+check_outputs $r1o $r2o
+
 
 echo "Testing compressed"
-$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $scriptpath/compressed_R1_filtered.fastq --o2 $scriptpath/compressed_R2_filtered.fastq --threshold 9
-echo
-compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
-echo
-compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
-echo "______________________"
-rm $scriptpath/*filtered.fastq
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $r1o --o2 $r2o --threshold 9
+check_outputs $r1o $r2o
+
 
 echo "Testing unsafe mode"
-$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $scriptpath/compressed_R1_filtered.fastq --o2 $scriptpath/compressed_R2_filtered.fastq --threshold 9 --unsafe
-echo
-compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
-echo
-compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
-echo "______________________"
-rm $scriptpath/*filtered.fastq
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $r1o --o2 $r2o --threshold 9 --unsafe
+check_outputs $r1o $r2o
 
-echo "Testing implicit output paths and output stats"
-$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --threshold 9 --stats_file $scriptpath/fastq_filterer.stats
+
+echo "Testing implicit output paths"
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --threshold 9
+check_outputs $scriptpath/compressed_R1_filtered.fastq $scriptpath/compressed_R2_filtered.fastq
+
+
+echo "Testing output stats"
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $r1o --o2 $r2o --threshold 9 --stats_file $scriptpath/fastq_filterer.stats
 echo
-compare_files $scriptpath/compressed_R1_filtered.fastq $scriptpath/R1_min_len_9.fastq
-echo
-compare_files $scriptpath/compressed_R2_filtered.fastq $scriptpath/R2_min_len_9.fastq
-echo
-compare_files $scriptpath/fastq_filterer.stats $scriptpath/expected_fastq_filterer.stats
-echo "______________________"
-rm $scriptpath/*filtered.fastq
+_compare $scriptpath/fastq_filterer.stats $scriptpath/expected_fastq_filterer.stats
+check_outputs $r1o $r2o
+
 
 echo "Finished tests with exit status $exit_status"
