@@ -19,7 +19,7 @@
 
 int threshold;
 char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
-int reads_checked = 0, reads_removed = 0;
+int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 
 
 static void timestamp() {
@@ -130,7 +130,7 @@ static int filter_fastqs() {
             int ret_val = 0;
             if (*r1_header != *r2_header) {  // if either file is not finished
                 timestamp();
-                printf("Input fastqs have differing numbers of reads at line %i\n", reads_checked);
+                printf("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
                 ret_val = 1;
             }
             
@@ -141,7 +141,8 @@ static int filter_fastqs() {
             return ret_val;
 
         } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
-            reads_checked++;
+            read_pairs_checked++;
+            read_pairs_remaining++;
             
             fputs(r1_header, r1o);
             fputs(r1_seq, r1o);
@@ -154,8 +155,8 @@ static int filter_fastqs() {
             fputs(r2_qual, r2o);
             
         } else {
-            reads_checked++;
-            reads_removed++;
+            read_pairs_checked++;
+            read_pairs_removed++;
         }
         
         free(r1_header);
@@ -218,11 +219,11 @@ static void check_file_paths() {
 static void output_stats() {
     FILE* f = fopen(stats_file, "w");
     
-    char* stats = malloc(sizeof (char) * (39 + strlen(r1i_path) + strlen(r2i_path) + strlen(r1o_path) + strlen(r2o_path) + 12 + 12));
+    char* stats = malloc(sizeof (char) * (83 + strlen(r1i_path) + strlen(r2i_path) + strlen(r1o_path) + strlen(r2o_path) + 24));
     sprintf(
         stats,
-        "r1i %s\nr2i %s\nr1o %s\nr2o %s\nchecked %i\nremoved %i\n",
-        r1i_path, r2i_path, r1o_path, r2o_path, reads_checked, reads_removed
+        "r1i %s\nr2i %s\nr1o %s\nr2o %s\nread_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
+        r1i_path, r2i_path, r1o_path, r2o_path, read_pairs_checked, read_pairs_removed, read_pairs_remaining
     );
     fputs(stats, f);
     free(stats);
@@ -285,11 +286,13 @@ int main(int argc, char* argv[]) {
     }
     
     check_file_paths();
-    
     int exit_status = filter_fastqs();
     
     timestamp();
-    printf("Checked %i reads, removed %i. Exit status %i\n", reads_checked, reads_removed, exit_status);
+    printf(
+        "Checked %i read pairs, %i removed, %i remaining. Exit status %i\n",
+        read_pairs_checked, read_pairs_removed, read_pairs_remaining, exit_status
+    );
 
     if (stats_file != NULL) {
         timestamp();
