@@ -8,8 +8,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
-#include <assert.h>
 #include <zlib.h>
 #include <getopt.h>
 #include <time.h>
@@ -22,8 +22,7 @@ char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *st
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 
 
-static void timestamp() {
-
+static void _log(char* fmt_str, ...) {
     time_t t = time(NULL);
     struct tm* now = localtime(&t);
     
@@ -31,6 +30,10 @@ static void timestamp() {
         "[%i-%i-%i %i:%i:%i][fastq_filterer] ",
         now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min,  now->tm_sec
     );
+    va_list args;
+    va_start(args, fmt_str);
+    vprintf(fmt_str, args);
+    va_end(args);
 }
 
 
@@ -129,8 +132,7 @@ static int filter_fastqs() {
         if (*r1_header == '\0' || *r2_header == '\0') {
             int ret_val = 0;
             if (*r1_header != *r2_header) {  // if either file is not finished
-                timestamp();
-                printf("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
+                _log("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
                 ret_val = 1;
             }
             
@@ -196,22 +198,17 @@ static void check_file_paths() {
     if (r1i_path == NULL || r2i_path == NULL) exit(1);
     
     if (r1o_path == NULL) {
-        timestamp();
-        printf("No o1 argument given - deriving from i1\n");
+        _log("No o1 argument given - deriving from i1\n");
         r1o_path = build_output_path(r1i_path);
     }
     if (r2o_path == NULL) {
-        timestamp();
-        printf("No o2 argument given - deriving from i2\n");
+        _log("No o2 argument given - deriving from i2\n");
         r2o_path = build_output_path(r2i_path);
     }
     
-    timestamp();
-    printf("R1: %s -> %s\n", r1i_path, r1o_path);
-    timestamp();
-    printf("R2: %s -> %s\n", r2i_path, r2o_path);
-    timestamp();
-    printf("Filter threshold: %i\n", threshold);
+    _log("R1: %s -> %s\n", r1i_path, r1o_path);
+    _log("R2: %s -> %s\n", r2i_path, r2o_path);
+    _log("Filter threshold: %i\n", threshold);
 }
 
 
@@ -288,15 +285,13 @@ int main(int argc, char* argv[]) {
     check_file_paths();
     int exit_status = filter_fastqs();
     
-    timestamp();
-    printf(
+    _log(
         "Checked %i read pairs, %i removed, %i remaining. Exit status %i\n",
         read_pairs_checked, read_pairs_removed, read_pairs_remaining, exit_status
     );
 
     if (stats_file != NULL) {
-        timestamp();
-        printf("Writing stats file %s\n", stats_file);
+        _log("Writing stats file %s\n", stats_file);
         output_stats();
     }
     
