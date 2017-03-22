@@ -3,30 +3,44 @@
 //  Fastq-Filterer
 //
 //  Created by Murray Wham on 05/09/2016.
-//  Copyright (c) 2016 Edinburgh Genomics (see ../LICENCE)
+//  Copyright (c) 2017 Edinburgh Genomics (see ../LICENCE)
 //
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
-#include <assert.h>
 #include <zlib.h>
 #include <getopt.h>
+#include <time.h>
 
 #define block_size 2048
 #define unsafe_block_size 4096
 
 int threshold;
+char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
+int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 
-static void _log(char* msg) {
-    printf("[fastq_filterer] %s\n", msg);
+
+static void _log(char* fmt_str, ...) {
+    time_t t = time(NULL);
+    struct tm* now = localtime(&t);
+    
+    printf(
+        "[%i-%i-%i %i:%i:%i][fastq_filterer] ",
+        now->tm_year + 1900, now->tm_mon + 1, now->tm_mday, now->tm_hour, now->tm_min,  now->tm_sec
+    );
+    va_list args;
+    va_start(args, fmt_str);
+    vprintf(fmt_str, args);
+    va_end(args);
 }
 
 
 static void help_msg() {
     printf(
 "Usage: fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_filtered.fastq> --o2 <r2_filtered.fastq>] \
---threshold <filter_threshold> [--unsafe]\n\
+--threshold <filter_threshold> [--stats_file <fastq_filterer.stats>] [--unsafe]\n\
 Fastq or fastq.gz files can be read in, but output will always be uncompressed.\
 --unsafe uses a faster read function, but will chop lines over 4096 characters.\
 "
@@ -78,7 +92,7 @@ static char* readln(gzFile* f) {
 char* (*read_func)(gzFile*) = readln;
 
 
-static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o_path) {
+static int filter_fastqs() {
     /*
      Read two fastqs (R1.fastq, R2.fastq) entry by entry, check whether the R1 and R2 for each read
      are both long enough, and output them to R1_filtered.fastq and R2_filtered.fastq if they are.
@@ -115,9 +129,23 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
         r2_strand = read_func(r2i);  // -
         r2_qual = read_func(r2i);    // #--------
         
-        if (*r1_header == '\0') {
-            return 0;
+        if (*r1_header == '\0' || *r2_header == '\0') {
+            int ret_val = 0;
+            if (*r1_header != *r2_header) {  // if either file is not finished
+                _log("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
+                ret_val = 1;
+            }
+            
+            gzclose(r1i);
+            gzclose(r2i);
+            fclose(r1o);
+            fclose(r2o);
+            return ret_val;
+
         } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+            read_pairs_checked++;
+            read_pairs_remaining++;
+            
             fputs(r1_header, r1o);
             fputs(r1_seq, r1o);
             fputs(r1_strand, r1o);
@@ -127,7 +155,12 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
             fputs(r2_seq, r2o);
             fputs(r2_strand, r2o);
             fputs(r2_qual, r2o);
+            
+        } else {
+            read_pairs_checked++;
+            read_pairs_removed++;
         }
+        
         free(r1_header);
         free(r1_seq);
         free(r1_strand);
@@ -138,53 +171,71 @@ static int read_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o
         free(r2_strand);
         free(r2_qual);
     }
-    return 0;
 }
 
 
-static char* build_output_path(char* input_path, char* file_ext) {
+static char* build_output_path(char* input_path) {
     /*
-     Converts, e.g, basename.fastq to basename_filtered.fastq. Used when output fastq paths are not specified.
+     Convert, e.g, basename.fastq to basename_filtered.fastq. Used when output fastq paths are not specified.
      */
     
-    static char filtered[10] = "_filtered";
-    size_t basename_len = strlen(input_path) - strlen(file_ext);
-    char* basename = malloc(sizeof (char) * basename_len);
-    strncat(basename, input_path, basename_len);
-    char* new_output_path = malloc(sizeof (char) * (strlen(basename) + strlen(filtered) + strlen(file_ext)));
-    strcpy(new_output_path, basename);
-    strcat(new_output_path, filtered);
-    strcat(new_output_path, file_ext);
-    return new_output_path;
+    int file_ext_len = 6;  // .fastq
+    
+    if (input_path[strlen(input_path) - 1] == 'z') {
+        file_ext_len = 9;  // .fastq.gz
+    }
+    
+    size_t basename_len = strlen(input_path) - file_ext_len;
+    char* output_path = malloc(sizeof (char) * (basename_len + 15));  // _filtered.fastq
+    strncpy(output_path, input_path, basename_len);
+    output_path[basename_len] = '\0';
+    strcat(output_path, "_filtered.fastq");
+    return output_path;
 }
 
 
-static int filter_fastqs(char* r1i_path, char* r2i_path, char* r1o_path, char* r2o_path) {
+static void check_file_paths() {
+    if (r1i_path == NULL || r2i_path == NULL) exit(1);
+    
     if (r1o_path == NULL) {
-        _log("No o1 argument given - deriving from i1");
-        r1o_path = build_output_path(r1i_path, ".fastq");
+        _log("No o1 argument given - deriving from i1\n");
+        r1o_path = build_output_path(r1i_path);
     }
     if (r2o_path == NULL) {
-        _log("No o2 argument given - deriving from i2");
-        r2o_path = build_output_path(r2i_path, ".fastq");
+        _log("No o2 argument given - deriving from i2\n");
+        r2o_path = build_output_path(r2i_path);
     }
-    printf("[fastq_filterer] Input R1 file: %s\n", r1i_path);
-    printf("[fastq_filterer] Input R2 file: %s\n", r2i_path);
-    printf("[fastq_filterer] Output R1 file: %s\n", r1o_path);
-    printf("[fastq_filterer] Output R2 file: %s\n", r2o_path);
     
-    return read_fastqs(r1i_path, r2i_path, r1o_path, r2o_path);
+    _log("R1: %s -> %s\n", r1i_path, r1o_path);
+    _log("R2: %s -> %s\n", r2i_path, r2o_path);
+    _log("Filter threshold: %i\n", threshold);
 }
+
+
+
+static void output_stats() {
+    FILE* f = fopen(stats_file, "w");
+    
+    char* stats = malloc(sizeof (char) * (83 + strlen(r1i_path) + strlen(r2i_path) + strlen(r1o_path) + strlen(r2o_path) + 24));
+    sprintf(
+        stats,
+        "r1i %s\nr2i %s\nr1o %s\nr2o %s\nread_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
+        r1i_path, r2i_path, r1o_path, r2o_path, read_pairs_checked, read_pairs_removed, read_pairs_remaining
+    );
+    fputs(stats, f);
+    free(stats);
+    fclose(f);
+}
+
 
 
 int main(int argc, char* argv[]) {
-    
     int arg;
-    char *r1i = NULL, *r2i = NULL, *r1o = NULL, *r2o = NULL;
     
     static struct option args[] = {
         {"help", no_argument, 0, 'h'},
         {"unsafe", no_argument, 0, 'f'},
+        {"stats_file", required_argument, 0, 'w'},
         {"threshold", required_argument, 0, 't'},
         {"i1", required_argument, 0, 'r'},
         {"i2", required_argument, 0, 's'},
@@ -197,20 +248,20 @@ int main(int argc, char* argv[]) {
     while ((arg = getopt_long(argc, argv, "h:t:r:s:i:j:", args, &opt_idx)) != -1) {
         switch(arg) {
             case 'r':
-                r1i = malloc(sizeof optarg);
-                r1i = optarg;
+                r1i_path = malloc(sizeof optarg);
+                r1i_path = optarg;
                 break;
             case 's':
-                r2i = malloc(sizeof optarg);
-                r2i = optarg;
+                r2i_path = malloc(sizeof optarg);
+                r2i_path = optarg;
                 break;
             case 'i':
-                r1o = malloc(sizeof optarg);
-                r1o = optarg;
+                r1o_path = malloc(sizeof optarg);
+                r1o_path = optarg;
                 break;
             case 'j':
-                r2o = malloc(sizeof optarg);
-                r2o = optarg;
+                r2o_path = malloc(sizeof optarg);
+                r2o_path = optarg;
                 break;
             case 'h':
                 help_msg();
@@ -219,6 +270,10 @@ int main(int argc, char* argv[]) {
             case 'f':
                 read_func = readln_unsafe;
                 break;
+            case 'w':
+                stats_file = malloc(sizeof optarg);
+                stats_file = optarg;
+                break;
             case 't':
                 threshold = atoi(optarg);
                 break;
@@ -226,10 +281,19 @@ int main(int argc, char* argv[]) {
                 exit(1);
         }
     }
-    if (r1i == NULL || r2i == NULL) exit(1);
     
-    printf("[fastq_filterer] Filter threshold: %i\n", threshold);
-    int exit_status = filter_fastqs(r1i, r2i, r1o, r2o);
-    printf("[fastq_filterer] Completed with exit status %i\n", exit_status);
+    check_file_paths();
+    int exit_status = filter_fastqs();
+    
+    _log(
+        "Checked %i read pairs, %i removed, %i remaining. Exit status %i\n",
+        read_pairs_checked, read_pairs_removed, read_pairs_remaining, exit_status
+    );
+
+    if (stats_file != NULL) {
+        _log("Writing stats file %s\n", stats_file);
+        output_stats();
+    }
+    
     return exit_status;
 }
