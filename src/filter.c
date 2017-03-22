@@ -13,6 +13,7 @@
 #include <zlib.h>
 #include <getopt.h>
 #include <time.h>
+#include "filter.h"
 
 #define block_size 2048
 #define unsafe_block_size 4096
@@ -34,17 +35,6 @@ static void _log(char* fmt_str, ...) {
     va_start(args, fmt_str);
     vprintf(fmt_str, args);
     va_end(args);
-}
-
-
-static void help_msg() {
-    printf(
-"Usage: fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> [--o1 <r1_filtered.fastq> --o2 <r2_filtered.fastq>] \
---threshold <filter_threshold> [--stats_file <fastq_filterer.stats>] [--unsafe]\n\
-Fastq or fastq.gz files can be read in, but output will always be uncompressed.\
---unsafe uses a faster read function, but will chop lines over 4096 characters.\
-"
-    );
 }
 
 
@@ -234,6 +224,7 @@ int main(int argc, char* argv[]) {
     
     static struct option args[] = {
         {"help", no_argument, 0, 'h'},
+        {"version", no_argument, 0, 'v'},
         {"unsafe", no_argument, 0, 'f'},
         {"stats_file", required_argument, 0, 'w'},
         {"threshold", required_argument, 0, 't'},
@@ -264,7 +255,11 @@ int main(int argc, char* argv[]) {
                 r2o_path = optarg;
                 break;
             case 'h':
-                help_msg();
+                printf(USAGE);
+                exit(0);
+                break;
+            case 'v':
+                printf("%s\n", VERSION);
                 exit(0);
                 break;
             case 'f':
