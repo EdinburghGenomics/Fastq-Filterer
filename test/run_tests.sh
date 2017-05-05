@@ -5,7 +5,7 @@
 # M.
 
 scriptpath=$(dirname $0)
-filterer=$scriptpath/../fastq_filterer
+filterer="$scriptpath/../fastq_filterer --quiet"
 exit_status=0
 
 r1o=$scriptpath/R1_filtered.fastq

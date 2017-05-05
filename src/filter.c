@@ -19,11 +19,19 @@
 #define unsafe_block_size 4096
 
 int threshold;
+int quiet = 0;
 char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
+int trim_r1, trim_r2;
+char** remove_tiles;
+
 
 
 static void _log(char* fmt_str, ...) {
+    if (quiet) {
+        return ;
+    }
+    
     time_t t = time(NULL);
     struct tm* now = localtime(&t);
     
@@ -82,6 +90,21 @@ static char* readln(gzFile* f) {
 char* (*read_func)(gzFile*) = readln;
 
 
+static char* get_tile_id(char* fastq_header) {
+    char* hdr = malloc(sizeof (char) * strlen(fastq_header));
+    strcpy(hdr, fastq_header);  // strtok modifies the string passed to it, so use a copy
+    
+    char* field;
+    field = strtok(hdr, ":");
+    int i;
+    for (i=0; i<4; i++) {
+        field = strtok(NULL, ":");  // walk along the header 4 times to the tile ID
+    }
+    free(hdr);
+    return field;
+}
+
+
 static int filter_fastqs() {
     /*
      Read two fastqs (R1.fastq, R2.fastq) entry by entry, check whether the R1 and R2 for each read
@@ -122,7 +145,7 @@ static int filter_fastqs() {
         if (*r1_header == '\0' || *r2_header == '\0') {
             int ret_val = 0;
             if (*r1_header != *r2_header) {  // if either file is not finished
-                _log("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
+                _log("Input fastqs have differing numbers of reads, from line %i\n", read_pairs_checked * 4);
                 ret_val = 1;
             }
             
@@ -184,6 +207,38 @@ static char* build_output_path(char* input_path) {
 }
 
 
+static void build_remove_tiles(char* arg) {
+    if (arg == NULL) {  // no --remove_tiles argument
+        return;
+    }
+    
+    char* rm_tiles = malloc(sizeof (char) * strlen(arg));
+    strcpy(rm_tiles, arg);  // use a copy for strtok
+    
+    int ntiles = 1;
+    char* comma = strchr(rm_tiles, ',');
+    while (comma != NULL) {
+        ntiles++;
+        comma = strchr(comma+1, ',');
+    }
+    
+    _log("Identified %i tiles to remove\n", ntiles);
+    
+    remove_tiles = malloc(sizeof (char*) * ntiles);
+    int i = 0;
+    char* field;
+    field = strtok(rm_tiles, ",");
+    while (field != NULL) {
+        remove_tiles[i] = malloc(sizeof (char) * strlen(field) + 1);
+        strcpy(remove_tiles[i], field);
+        field = strtok(NULL, ",");
+        i++;
+    }
+    
+    free(field);
+}
+
+
 static void check_file_paths() {
     if (r1i_path == NULL || r2i_path == NULL) exit(1);
     
@@ -225,35 +280,23 @@ int main(int argc, char* argv[]) {
     static struct option args[] = {
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'v'},
+        {"quiet", no_argument, 0, 'q'},
         {"unsafe", no_argument, 0, 'f'},
-        {"stats_file", required_argument, 0, 'w'},
+        {"stats_file", required_argument, 0, 's'},
         {"threshold", required_argument, 0, 't'},
-        {"i1", required_argument, 0, 'r'},
-        {"i2", required_argument, 0, 's'},
-        {"o1", required_argument, 0, 'i'},
-        {"o2", required_argument, 0, 'j'},
+        {"remove_tiles", required_argument, 0, 'r'},
+        {"trim_r1", required_argument, 0, 'l'},
+        {"trim_r2", required_argument, 0, 'm'},
+        {"i1", required_argument, 0, 'i'},
+        {"i2", required_argument, 0, 'j'},
+        {"o1", required_argument, 0, 'o'},
+        {"o2", required_argument, 0, 'p'},
         {0, 0, 0, 0}
     };
     int opt_idx = 0;
     
-    while ((arg = getopt_long(argc, argv, "h:t:r:s:i:j:", args, &opt_idx)) != -1) {
+    while ((arg = getopt_long(argc, argv, "", args, &opt_idx)) != -1) {
         switch(arg) {
-            case 'r':
-                r1i_path = malloc(sizeof optarg);
-                r1i_path = optarg;
-                break;
-            case 's':
-                r2i_path = malloc(sizeof optarg);
-                r2i_path = optarg;
-                break;
-            case 'i':
-                r1o_path = malloc(sizeof optarg);
-                r1o_path = optarg;
-                break;
-            case 'j':
-                r2o_path = malloc(sizeof optarg);
-                r2o_path = optarg;
-                break;
             case 'h':
                 printf(USAGE);
                 exit(0);
@@ -262,15 +305,43 @@ int main(int argc, char* argv[]) {
                 printf("%s\n", VERSION);
                 exit(0);
                 break;
+            case 'q':
+                quiet = 1;
+                break;
             case 'f':
                 read_func = readln_unsafe;
                 break;
-            case 'w':
+            case 's':
                 stats_file = malloc(sizeof optarg);
                 stats_file = optarg;
                 break;
             case 't':
                 threshold = atoi(optarg);
+                break;
+            case 'r':
+                build_remove_tiles(optarg);
+                break;
+            case 'l':
+                trim_r1 = atoi(optarg);
+                break;
+            case 'm':
+                trim_r2 = atoi(optarg);
+                break;
+            case 'i':
+                r1i_path = malloc(sizeof optarg);
+                r1i_path = optarg;
+                break;
+            case 'j':
+                r2i_path = malloc(sizeof optarg);
+                r2i_path = optarg;
+                break;
+            case 'o':
+                r1o_path = malloc(sizeof optarg);
+                r1o_path = optarg;
+                break;
+            case 'p':
+                r2o_path = malloc(sizeof optarg);
+                r2o_path = optarg;
                 break;
             default:
                 exit(1);
