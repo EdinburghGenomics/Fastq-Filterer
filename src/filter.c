@@ -13,6 +13,7 @@
 #include <zlib.h>
 #include <getopt.h>
 #include <time.h>
+#include <stdbool.h>
 #include "filter.h"
 
 #define block_size 2048
@@ -87,6 +88,7 @@ static char* readln(gzFile* f) {
     return line;
 }
 
+
 char* (*read_func)(gzFile*) = readln;
 
 
@@ -103,6 +105,41 @@ static char* get_tile_id(char* fastq_header) {
     free(hdr);
     return field;
 }
+
+
+
+static bool standard_include(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+    if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+static bool tile_include(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+    int result = standard_include(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual);
+    if (result == false) {
+        return false;
+    }
+    
+    char* tile_id = get_tile_id(r1_header);
+    int i = 0;
+    
+    char* comp = remove_tiles[i];
+    while (comp != NULL) {  // check for null terminator at end of remove_tiles
+        if (strcmp(comp, tile_id) == 0) {
+            return false;
+        }
+        i++;
+        comp = remove_tiles[i];
+    }
+    
+    return true;
+}
+
+
+bool (*include_func)(char*, char*, char*, char*, char*, char*, char*, char*) = standard_include;
 
 
 static int filter_fastqs() {
@@ -130,8 +167,8 @@ static int filter_fastqs() {
     char* r2_seq;
     char* r2_strand;
     char* r2_qual;
-
-    while (1) {
+    
+    while (true) {
         r1_header = read_func(r1i);  // @read_1 1
         r1_seq = read_func(r1i);     // ATGCATGC
         r1_strand = read_func(r1i);  // +
@@ -153,9 +190,11 @@ static int filter_fastqs() {
             gzclose(r2i);
             fclose(r1o);
             fclose(r2o);
+
             return ret_val;
 
-        } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+        } else if (include_func(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual) == true) {
+            // include reads
             read_pairs_checked++;
             read_pairs_remaining++;
             
@@ -170,6 +209,7 @@ static int filter_fastqs() {
             fputs(r2_qual, r2o);
             
         } else {
+            // exclude reads
             read_pairs_checked++;
             read_pairs_removed++;
         }
@@ -224,7 +264,7 @@ static void build_remove_tiles(char* arg) {
     
     _log("Identified %i tiles to remove\n", ntiles);
     
-    remove_tiles = malloc(sizeof (char*) * ntiles);
+    remove_tiles = malloc(sizeof (char*) * (ntiles + 1));
     int i = 0;
     char* field;
     field = strtok(rm_tiles, ",");
@@ -234,8 +274,7 @@ static void build_remove_tiles(char* arg) {
         field = strtok(NULL, ",");
         i++;
     }
-    
-    free(field);
+    remove_tiles[i] = NULL;  // set a null terminator
 }
 
 
@@ -320,6 +359,7 @@ int main(int argc, char* argv[]) {
                 break;
             case 'r':
                 build_remove_tiles(optarg);
+                include_func = tile_include;
                 break;
             case 'l':
                 trim_r1 = atoi(optarg);

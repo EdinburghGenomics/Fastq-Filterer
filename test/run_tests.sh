@@ -53,4 +53,11 @@ _compare $scriptpath/fastq_filterer.stats $scriptpath/expected_fastq_filterer.st
 check_outputs $r1o $r2o
 
 
+echo "Testing tile removal"
+$filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $r1o --o2 $r2o --threshold 9 --remove_tiles 1102,2202
+_compare $r1o $scriptpath/R1_remove_tiles.fastq
+_compare $r2o $scriptpath/R2_remove_tiles.fastq
+echo "______________________"
+
+
 echo "Finished tests with exit status $exit_status"

@@ -52,6 +52,6 @@ in r2.fastq
 - Fastq-Filterer parses the flowcell tile ID from the fastq read headers, so it is assumed that the fastq
 headers are in the standard Illumina format:
 
-@instrument_id:run_id:flowcell_id:lane:tile_id:x:y read_number:filter_flag:0:idx_seq
+    @instrument_id:run_id:flowcell_id:lane:tile_id:x:y read_number:filter_flag:0:idx_seq
 
 For more information, see Illumina's bcl2fastq docs.
