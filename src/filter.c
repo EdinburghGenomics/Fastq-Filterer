@@ -108,7 +108,7 @@ static char* get_tile_id(char* fastq_header) {
 
 
 
-static bool standard_include(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+static bool std_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
     if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
         return true;
     } else {
@@ -117,8 +117,8 @@ static bool standard_include(char* r1_header, char* r1_seq, char* r1_strand, cha
 }
 
 
-static bool tile_include(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
-    int result = standard_include(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual);
+static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+    int result = std_check_read(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual);
     if (result == false) {
         return false;
     }
@@ -139,7 +139,39 @@ static bool tile_include(char* r1_header, char* r1_seq, char* r1_strand, char* r
 }
 
 
-bool (*include_func)(char*, char*, char*, char*, char*, char*, char*, char*) = standard_include;
+bool (*check_func)(char*, char*, char*, char*, char*, char*, char*, char*) = std_check_read;
+
+
+static void std_include(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    fputs(header, outfile);
+    fputs(seq, outfile);
+    fputs(strand, outfile);
+    fputs(qual, outfile);
+}
+
+
+static void _trim_include(char* header, char* seq, char* strand, char* qual, FILE* outfile, int trim_len) {
+    if (strlen(seq) > trim_len) {
+        seq[trim_len] = '\n';
+        seq[trim_len + 1] = '\0';
+        qual[trim_len + 1] = '\n';  // there's a # at the start of this line, so add 1
+        qual[trim_len + 2] = '\0';
+    }
+    std_include(header, seq, strand, qual, outfile);
+}
+
+static void trim_include_r1(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    _trim_include(header, seq, strand, qual, outfile, trim_r1);
+}
+
+
+static void trim_include_r2(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    _trim_include(header, seq, strand, qual, outfile, trim_r2);
+}
+
+
+void (*include_func_r1)(char*, char*, char*, char*, FILE*) = std_include;
+void (*include_func_r2)(char*, char*, char*, char*, FILE*) = std_include;
 
 
 static int filter_fastqs() {
@@ -193,21 +225,13 @@ static int filter_fastqs() {
 
             return ret_val;
 
-        } else if (include_func(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual) == true) {
+        } else if (check_func(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual) == true) {
             // include reads
             read_pairs_checked++;
             read_pairs_remaining++;
             
-            fputs(r1_header, r1o);
-            fputs(r1_seq, r1o);
-            fputs(r1_strand, r1o);
-            fputs(r1_qual, r1o);
-            
-            fputs(r2_header, r2o);
-            fputs(r2_seq, r2o);
-            fputs(r2_strand, r2o);
-            fputs(r2_qual, r2o);
-            
+            include_func_r1(r1_header, r1_seq, r1_strand, r1_qual, r1o);
+            include_func_r2(r2_header, r2_seq, r2_strand, r2_qual, r2o);
         } else {
             // exclude reads
             read_pairs_checked++;
@@ -296,18 +320,22 @@ static void check_file_paths() {
 }
 
 
-
 static void output_stats() {
     FILE* f = fopen(stats_file, "w");
     
-    char* stats = malloc(sizeof (char) * (83 + strlen(r1i_path) + strlen(r2i_path) + strlen(r1o_path) + strlen(r2o_path) + 24));
-    sprintf(
-        stats,
+    fprintf(
+        f,
         "r1i %s\nr2i %s\nr1o %s\nr2o %s\nread_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
         r1i_path, r2i_path, r1o_path, r2o_path, read_pairs_checked, read_pairs_removed, read_pairs_remaining
     );
-    fputs(stats, f);
-    free(stats);
+    
+    if (trim_r1) {
+        fprintf(f, "trim_r1 %i\n", trim_r1);
+    }
+    if (trim_r2) {
+        fprintf(f, "trim_r2 %i\n", trim_r2);
+    }
+    
     fclose(f);
 }
 
@@ -359,13 +387,17 @@ int main(int argc, char* argv[]) {
                 break;
             case 'r':
                 build_remove_tiles(optarg);
-                include_func = tile_include;
+                check_func = tile_check_read;
                 break;
             case 'l':
+                _log("Trimming R1 to %s\n", optarg);
                 trim_r1 = atoi(optarg);
+                include_func_r1 = trim_include_r1;
                 break;
             case 'm':
+                _log("Trimming R2 to %s\n", optarg);
                 trim_r2 = atoi(optarg);
+                include_func_r2 = trim_include_r2;
                 break;
             case 'i':
                 r1i_path = malloc(sizeof optarg);

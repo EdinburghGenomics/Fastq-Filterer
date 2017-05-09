@@ -29,7 +29,7 @@ To set up the filterer, simply compile it in place via the Makefile:
 ## Usage
 A minimum of three arguments are required:
 
-fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> --threshold <filter_threshold>
+    fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> --threshold <filter_threshold>
 
 Running this will read in both files, apply the filter threshold, and output two files named after the input
 files with the suffix '_filtered.fastq'.
@@ -49,8 +49,8 @@ A few assumptions are made about the input fastqs:
 - It is assumed that both input fastqs have the same number of reads, and that they are both in the same
 order. Therefore, a read starting on line `n` in r1.fastq should correspond to the read starting on line `n`
 in r2.fastq
-- Fastq-Filterer parses the flowcell tile ID from the fastq read headers, so it is assumed that the fastq
-headers are in the standard Illumina format:
+- If using `--remove_tiles`, Fastq-Filterer parses the flowcell tile ID from the fastq read headers, so it is
+assumed that the read headers are in standard Illumina format:
 
     @instrument_id:run_id:flowcell_id:lane:tile_id:x:y read_number:filter_flag:0:idx_seq
 
