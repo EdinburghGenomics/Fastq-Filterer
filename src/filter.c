@@ -24,8 +24,8 @@ bool quiet = false;
 char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 int trim_r1, trim_r2;
-char** remove_tiles;
-
+char* remove_tiles;
+char** tiles_to_remove;
 
 
 static void _log(char* fmt_str, ...) {
@@ -126,13 +126,13 @@ static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char
     char* tile_id = get_tile_id(r1_header);
     int i = 0;
     
-    char* comp = remove_tiles[i];
+    char* comp = tiles_to_remove[i];
     while (comp != NULL) {  // check for null terminator at end of remove_tiles
         if (strcmp(comp, tile_id) == 0) {
             return false;
         }
         i++;
-        comp = remove_tiles[i];
+        comp = tiles_to_remove[i];
     }
     
     return true;
@@ -154,8 +154,8 @@ static void _trim_include(char* header, char* seq, char* strand, char* qual, FIL
     if (strlen(seq) > trim_len + 1) {  // add 1 here to compensate for \n at end of line...
         seq[trim_len] = '\n';  // ...but 0-indexing means we don't need to add 1 here
         seq[trim_len + 1] = '\0';
-        qual[trim_len + 1] = '\n';  // qual line has a # at the start, so add 1
-        qual[trim_len + 2] = '\0';
+        qual[trim_len] = '\n';
+        qual[trim_len + 1] = '\0';
     }
     std_include(header, seq, strand, qual, outfile);
 }
@@ -271,13 +271,13 @@ static char* build_output_path(char* input_path) {
 }
 
 
-static void build_remove_tiles(char* arg) {
-    if (arg == NULL) {  // no --remove_tiles argument
+static void build_remove_tiles() {
+    if (remove_tiles == NULL) {  // no --remove_tiles argument
         return;
     }
     
-    char* rm_tiles = malloc(sizeof (char) * strlen(arg));
-    strcpy(rm_tiles, arg);  // use a copy for strtok
+    char* rm_tiles = malloc(sizeof (char) * strlen(remove_tiles));
+    strcpy(rm_tiles, remove_tiles);  // use a copy for strtok
     
     int ntiles = 1;
     char* comma = strchr(rm_tiles, ',');
@@ -288,17 +288,17 @@ static void build_remove_tiles(char* arg) {
     
     _log("Identified %i tiles to remove\n", ntiles);
     
-    remove_tiles = malloc(sizeof (char*) * (ntiles + 1));
+    tiles_to_remove = malloc(sizeof (char*) * (ntiles + 1));
     int i = 0;
     char* field;
     field = strtok(rm_tiles, ",");
     while (field != NULL) {
-        remove_tiles[i] = malloc(sizeof (char) * strlen(field) + 1);
-        strcpy(remove_tiles[i], field);
+        tiles_to_remove[i] = malloc(sizeof (char) * strlen(field) + 1);
+        strcpy(tiles_to_remove[i], field);
         field = strtok(NULL, ",");
         i++;
     }
-    remove_tiles[i] = NULL;  // set a null terminator
+    tiles_to_remove[i] = NULL;  // set a null terminator
 }
 
 
@@ -334,6 +334,9 @@ static void output_stats() {
     }
     if (trim_r2) {
         fprintf(f, "trim_r2 %i\n", trim_r2);
+    }
+    if (remove_tiles) {
+        fprintf(f, "remove_tiles %s\n", remove_tiles);
     }
     
     fclose(f);
@@ -386,7 +389,8 @@ int main(int argc, char* argv[]) {
                 threshold = atoi(optarg);
                 break;
             case 'r':
-                build_remove_tiles(optarg);
+                remove_tiles = optarg;
+                build_remove_tiles();
                 check_func = tile_check_read;
                 break;
             case 'l':

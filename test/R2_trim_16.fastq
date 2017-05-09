@@ -1,28 +1,28 @@
 @instrument:run:flowcell:lane:1101:x:y 2:0:0:0 read_01 len 16
 ATGCATGCATGCATGC
 -
-#----------------
+----------------
 @instrument:run:flowcell:lane:1101:x:y 2:0:0:0 read_03 len 11
 ATGCATGCATG
 -
-#-----------
+-----------
 @instrument:run:flowcell:lane:1102:x:y 2:0:0:0 read_07 len 12
 ATGCATGCATGC
 -
-#------------
+------------
 @instrument:run:flowcell:lane:1202:x:y 2:0:0:0 read_11 len 20
 ATGCATGCATGCATGC
 -
-#----------------
+----------------
 @instrument:run:flowcell:lane:2101:x:y 2:0:0:0 read_13 len 19
 ATGCATGCATGCATGC
 -
-#----------------
+----------------
 @instrument:run:flowcell:lane:2202:x:y 2:0:0:0 read_19 len 13
 ATGCATGCATGCA
 -
-#-------------
+-------------
 @instrument:run:flowcell:lane:2202:x:y 2:0:0:0 read_20 len 9
 ATGCATGCA
 -
-#---------
+---------
