@@ -2,6 +2,7 @@
 0.3 (unreleased)
 ----------------
 - Added `--remove_tiles`, which filters out reads with specific tile ids (Illumina-formatted headers only)
+- Added `--trim_r1` and `--trim_r2` for trimming reads down to a maximum length
 
 0.2 (2017-03-22)
 ----------------

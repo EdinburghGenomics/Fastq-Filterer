@@ -32,7 +32,7 @@ A minimum of three arguments are required:
     fastq_filterer --i1 <r1.fastq> --i2 <r2.fastq> --threshold <filter_threshold>
 
 Running this will read in both files, apply the filter threshold, and output two files named after the input
-files with the suffix '_filtered.fastq'.
+files with the suffix '\_filtered.fastq'.
 
 Other arguments can also be passed:
 - `--o1 <r1_out.fastq>`: custom name for the R1 output file

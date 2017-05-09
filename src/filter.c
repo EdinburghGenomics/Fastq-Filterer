@@ -20,7 +20,7 @@
 #define unsafe_block_size 4096
 
 int threshold;
-int quiet = 0;
+bool quiet = false;
 char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 int trim_r1, trim_r2;
@@ -151,10 +151,10 @@ static void std_include(char* header, char* seq, char* strand, char* qual, FILE*
 
 
 static void _trim_include(char* header, char* seq, char* strand, char* qual, FILE* outfile, int trim_len) {
-    if (strlen(seq) > trim_len) {
-        seq[trim_len] = '\n';
+    if (strlen(seq) > trim_len + 1) {  // add 1 here to compensate for \n at end of line...
+        seq[trim_len] = '\n';  // ...but 0-indexing means we don't need to add 1 here
         seq[trim_len + 1] = '\0';
-        qual[trim_len + 1] = '\n';  // there's a # at the start of this line, so add 1
+        qual[trim_len + 1] = '\n';  // qual line has a # at the start, so add 1
         qual[trim_len + 2] = '\0';
     }
     std_include(header, seq, strand, qual, outfile);
@@ -373,7 +373,7 @@ int main(int argc, char* argv[]) {
                 exit(0);
                 break;
             case 'q':
-                quiet = 1;
+                quiet = true;
                 break;
             case 'f':
                 read_func = readln_unsafe;
