@@ -1,11 +1,3 @@
-//
-//  filter.h
-//  Fastq-Filterer
-//
-//  Created by Murray Wham on 22/03/2017.
-//  Copyright (c) 2017 Edinburgh Genomics (see ../LICENCE)
-//
-
 #ifndef FastqFilterer_h
 #define FastqFilterer_h
 
@@ -14,7 +6,7 @@
 #endif
 
 #ifndef VERSION
-#define VERSION "0.2"
+#define VERSION "0.3"
 #endif
 
 #ifndef USAGE

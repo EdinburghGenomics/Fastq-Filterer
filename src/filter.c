@@ -1,11 +1,3 @@
-//
-//  filter.c
-//  Fastq-Filterer
-//
-//  Created by Murray Wham on 05/09/2016.
-//  Copyright (c) 2017 Edinburgh Genomics (see ../LICENCE)
-//
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
