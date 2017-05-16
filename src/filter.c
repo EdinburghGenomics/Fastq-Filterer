@@ -13,17 +13,26 @@
 #include <zlib.h>
 #include <getopt.h>
 #include <time.h>
+#include <stdbool.h>
 #include "filter.h"
 
 #define block_size 2048
 #define unsafe_block_size 4096
 
 int threshold;
+bool quiet = false;
 char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
+int trim_r1, trim_r2;
+char* remove_tiles;
+char** tiles_to_remove;
 
 
 static void _log(char* fmt_str, ...) {
+    if (quiet) {
+        return ;
+    }
+    
     time_t t = time(NULL);
     struct tm* now = localtime(&t);
     
@@ -79,7 +88,90 @@ static char* readln(gzFile* f) {
     return line;
 }
 
+
 char* (*read_func)(gzFile*) = readln;
+
+
+static char* get_tile_id(char* fastq_header) {
+    char* hdr = malloc(sizeof (char) * strlen(fastq_header));
+    strcpy(hdr, fastq_header);  // strtok modifies the string passed to it, so use a copy
+    
+    char* field;
+    field = strtok(hdr, ":");
+    int i;
+    for (i=0; i<4; i++) {
+        field = strtok(NULL, ":");  // walk along the header 4 times to the tile ID
+    }
+    free(hdr);
+    return field;
+}
+
+
+
+static bool std_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+    if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
+    int result = std_check_read(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual);
+    if (result == false) {
+        return false;
+    }
+    
+    char* tile_id = get_tile_id(r1_header);
+    int i = 0;
+    
+    char* comp = tiles_to_remove[i];
+    while (comp != NULL) {  // check for null terminator at end of remove_tiles
+        if (strcmp(comp, tile_id) == 0) {
+            return false;
+        }
+        i++;
+        comp = tiles_to_remove[i];
+    }
+    
+    return true;
+}
+
+
+bool (*check_func)(char*, char*, char*, char*, char*, char*, char*, char*) = std_check_read;
+
+
+static void std_include(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    fputs(header, outfile);
+    fputs(seq, outfile);
+    fputs(strand, outfile);
+    fputs(qual, outfile);
+}
+
+
+static void _trim_include(char* header, char* seq, char* strand, char* qual, FILE* outfile, int trim_len) {
+    if (strlen(seq) > trim_len + 1) {  // add 1 here to compensate for \n at end of line...
+        seq[trim_len] = '\n';  // ...but 0-indexing means we don't need to add 1 here
+        seq[trim_len + 1] = '\0';
+        qual[trim_len] = '\n';
+        qual[trim_len + 1] = '\0';
+    }
+    std_include(header, seq, strand, qual, outfile);
+}
+
+static void trim_include_r1(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    _trim_include(header, seq, strand, qual, outfile, trim_r1);
+}
+
+
+static void trim_include_r2(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
+    _trim_include(header, seq, strand, qual, outfile, trim_r2);
+}
+
+
+void (*include_func_r1)(char*, char*, char*, char*, FILE*) = std_include;
+void (*include_func_r2)(char*, char*, char*, char*, FILE*) = std_include;
 
 
 static int filter_fastqs() {
@@ -107,8 +199,8 @@ static int filter_fastqs() {
     char* r2_seq;
     char* r2_strand;
     char* r2_qual;
-
-    while (1) {
+    
+    while (true) {
         r1_header = read_func(r1i);  // @read_1 1
         r1_seq = read_func(r1i);     // ATGCATGC
         r1_strand = read_func(r1i);  // +
@@ -122,7 +214,7 @@ static int filter_fastqs() {
         if (*r1_header == '\0' || *r2_header == '\0') {
             int ret_val = 0;
             if (*r1_header != *r2_header) {  // if either file is not finished
-                _log("Input fastqs have differing numbers of reads at line %i\n", read_pairs_checked * 4);
+                _log("Input fastqs have differing numbers of reads, from line %i\n", read_pairs_checked * 4);
                 ret_val = 1;
             }
             
@@ -130,23 +222,18 @@ static int filter_fastqs() {
             gzclose(r2i);
             fclose(r1o);
             fclose(r2o);
+
             return ret_val;
 
-        } else if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+        } else if (check_func(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual) == true) {
+            // include reads
             read_pairs_checked++;
             read_pairs_remaining++;
             
-            fputs(r1_header, r1o);
-            fputs(r1_seq, r1o);
-            fputs(r1_strand, r1o);
-            fputs(r1_qual, r1o);
-            
-            fputs(r2_header, r2o);
-            fputs(r2_seq, r2o);
-            fputs(r2_strand, r2o);
-            fputs(r2_qual, r2o);
-            
+            include_func_r1(r1_header, r1_seq, r1_strand, r1_qual, r1o);
+            include_func_r2(r2_header, r2_seq, r2_strand, r2_qual, r2o);
         } else {
+            // exclude reads
             read_pairs_checked++;
             read_pairs_removed++;
         }
@@ -184,6 +271,37 @@ static char* build_output_path(char* input_path) {
 }
 
 
+static void build_remove_tiles() {
+    if (remove_tiles == NULL) {  // no --remove_tiles argument
+        return;
+    }
+    
+    char* rm_tiles = malloc(sizeof (char) * strlen(remove_tiles));
+    strcpy(rm_tiles, remove_tiles);  // use a copy for strtok
+    
+    int ntiles = 1;
+    char* comma = strchr(rm_tiles, ',');
+    while (comma != NULL) {
+        ntiles++;
+        comma = strchr(comma+1, ',');
+    }
+    
+    _log("Identified %i tiles to remove\n", ntiles);
+    
+    tiles_to_remove = malloc(sizeof (char*) * (ntiles + 1));
+    int i = 0;
+    char* field;
+    field = strtok(rm_tiles, ",");
+    while (field != NULL) {
+        tiles_to_remove[i] = malloc(sizeof (char) * strlen(field) + 1);
+        strcpy(tiles_to_remove[i], field);
+        field = strtok(NULL, ",");
+        i++;
+    }
+    tiles_to_remove[i] = NULL;  // set a null terminator
+}
+
+
 static void check_file_paths() {
     if (r1i_path == NULL || r2i_path == NULL) exit(1);
     
@@ -202,18 +320,25 @@ static void check_file_paths() {
 }
 
 
-
 static void output_stats() {
     FILE* f = fopen(stats_file, "w");
     
-    char* stats = malloc(sizeof (char) * (83 + strlen(r1i_path) + strlen(r2i_path) + strlen(r1o_path) + strlen(r2o_path) + 24));
-    sprintf(
-        stats,
+    fprintf(
+        f,
         "r1i %s\nr2i %s\nr1o %s\nr2o %s\nread_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
         r1i_path, r2i_path, r1o_path, r2o_path, read_pairs_checked, read_pairs_removed, read_pairs_remaining
     );
-    fputs(stats, f);
-    free(stats);
+    
+    if (trim_r1) {
+        fprintf(f, "trim_r1 %i\n", trim_r1);
+    }
+    if (trim_r2) {
+        fprintf(f, "trim_r2 %i\n", trim_r2);
+    }
+    if (remove_tiles) {
+        fprintf(f, "remove_tiles %s\n", remove_tiles);
+    }
+    
     fclose(f);
 }
 
@@ -225,35 +350,23 @@ int main(int argc, char* argv[]) {
     static struct option args[] = {
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'v'},
+        {"quiet", no_argument, 0, 'q'},
         {"unsafe", no_argument, 0, 'f'},
-        {"stats_file", required_argument, 0, 'w'},
+        {"stats_file", required_argument, 0, 's'},
         {"threshold", required_argument, 0, 't'},
-        {"i1", required_argument, 0, 'r'},
-        {"i2", required_argument, 0, 's'},
-        {"o1", required_argument, 0, 'i'},
-        {"o2", required_argument, 0, 'j'},
+        {"remove_tiles", required_argument, 0, 'r'},
+        {"trim_r1", required_argument, 0, 'l'},
+        {"trim_r2", required_argument, 0, 'm'},
+        {"i1", required_argument, 0, 'i'},
+        {"i2", required_argument, 0, 'j'},
+        {"o1", required_argument, 0, 'o'},
+        {"o2", required_argument, 0, 'p'},
         {0, 0, 0, 0}
     };
     int opt_idx = 0;
     
-    while ((arg = getopt_long(argc, argv, "h:t:r:s:i:j:", args, &opt_idx)) != -1) {
+    while ((arg = getopt_long(argc, argv, "", args, &opt_idx)) != -1) {
         switch(arg) {
-            case 'r':
-                r1i_path = malloc(sizeof optarg);
-                r1i_path = optarg;
-                break;
-            case 's':
-                r2i_path = malloc(sizeof optarg);
-                r2i_path = optarg;
-                break;
-            case 'i':
-                r1o_path = malloc(sizeof optarg);
-                r1o_path = optarg;
-                break;
-            case 'j':
-                r2o_path = malloc(sizeof optarg);
-                r2o_path = optarg;
-                break;
             case 'h':
                 printf(USAGE);
                 exit(0);
@@ -262,15 +375,49 @@ int main(int argc, char* argv[]) {
                 printf("%s\n", VERSION);
                 exit(0);
                 break;
+            case 'q':
+                quiet = true;
+                break;
             case 'f':
                 read_func = readln_unsafe;
                 break;
-            case 'w':
+            case 's':
                 stats_file = malloc(sizeof optarg);
                 stats_file = optarg;
                 break;
             case 't':
                 threshold = atoi(optarg);
+                break;
+            case 'r':
+                remove_tiles = optarg;
+                build_remove_tiles();
+                check_func = tile_check_read;
+                break;
+            case 'l':
+                _log("Trimming R1 to %s\n", optarg);
+                trim_r1 = atoi(optarg);
+                include_func_r1 = trim_include_r1;
+                break;
+            case 'm':
+                _log("Trimming R2 to %s\n", optarg);
+                trim_r2 = atoi(optarg);
+                include_func_r2 = trim_include_r2;
+                break;
+            case 'i':
+                r1i_path = malloc(sizeof optarg);
+                r1i_path = optarg;
+                break;
+            case 'j':
+                r2i_path = malloc(sizeof optarg);
+                r2i_path = optarg;
+                break;
+            case 'o':
+                r1o_path = malloc(sizeof optarg);
+                r1o_path = optarg;
+                break;
+            case 'p':
+                r2o_path = malloc(sizeof optarg);
+                r2o_path = optarg;
                 break;
             default:
                 exit(1);

@@ -1,80 +1,80 @@
-@read_1 r1 len 12
+@instrument:run:flowcell:lane:1101:x:y 1:0:0:0 read_01 len 12
 ATGCATGCATGC
 +
-#------------
-@read_2 r1 len 3
+------------
+@instrument:run:flowcell:lane:1101:x:y 1:0:0:0 read_02 len 3
 ATG
 +
-#---
-@read_3 r1 len 16
+---
+@instrument:run:flowcell:lane:1101:x:y 1:0:0:0 read_03 len 16
 ATGCATGCATGCATGC
 +
-#----------------
-@read_4 r1 len 8
+----------------
+@instrument:run:flowcell:lane:1101:x:y 1:0:0:0 read_04 len 8
 ATGCATGC
 +
-#--------
-@read_5 r1 len 1
+--------
+@instrument:run:flowcell:lane:1102:x:y 1:0:0:0 read_05 len 1
 A
 +
-#-
-@read_6 r1 len 17
+-
+@instrument:run:flowcell:lane:1102:x:y 1:0:0:0 read_06 len 17
 ATGCATGCATGCATGCA
 +
-#-----------------
-@read_7 r1 len 15
+-----------------
+@instrument:run:flowcell:lane:1102:x:y 1:0:0:0 read_07 len 15
 ATGCATGCATGCATG
 +
-#---------------
-@read_8 r1 len 6
+---------------
+@instrument:run:flowcell:lane:1102:x:y 1:0:0:0 read_08 len 6
 ATGCAT
 +
-#------
-@read_9 r1 len 7
+------
+@instrument:run:flowcell:lane:1201:x:y 1:0:0:0 read_09 len 7
 ATGCATG
 +
-#-------
-@read_10 r1 len 2
+-------
+@instrument:run:flowcell:lane:1201:x:y 1:0:0:0 read_10 len 2
 AT
 +
-#--
-@read_11 r1 len 10
+--
+@instrument:run:flowcell:lane:1202:x:y 1:0:0:0 read_11 len 10
 ATGCATGCAT
 +
-#----------
-@read_12 r1 len 13
+----------
+@instrument:run:flowcell:lane:1202:x:y 1:0:0:0 read_12 len 13
 ATGCATGCATGCA
 +
-#-------------
-@read_13 r1 len 19
+-------------
+@instrument:run:flowcell:lane:2101:x:y 1:0:0:0 read_13 len 19
 ATGCATGCATGCATGCATG
 +
-#-------------------
-@read_14 r1 len 20
+-------------------
+@instrument:run:flowcell:lane:2101:x:y 1:0:0:0 read_14 len 20
 ATGCATGCATGCATGCATGC
 +
-#--------------------
-@read_15 r1 len 11
+--------------------
+@instrument:run:flowcell:lane:2102:x:y 1:0:0:0 read_15 len 11
 ATGCATGCATG
 +
-#-----------
-@read_16 r1 len 4
+-----------
+@instrument:run:flowcell:lane:2102:x:y 1:0:0:0 read_16 len 4
 ATGC
 +
-#----
-@read_17 r1 len 18
+----
+@instrument:run:flowcell:lane:2201:x:y 1:0:0:0 read_17 len 18
 ATGCATGCATGCATGCAT
 +
-#------------------
-@read_18 r1 len 5
+------------------
+@instrument:run:flowcell:lane:2201:x:y 1:0:0:0 read_18 len 5
 ATGCA
 +
-#-----
-@read_19 r1 len 14
+-----
+@instrument:run:flowcell:lane:2202:x:y 1:0:0:0 read_19 len 14
 ATGCATGCATGCAT
 +
-#--------------
-@read_20 r1 len 9
+--------------
+@instrument:run:flowcell:lane:2202:x:y 1:0:0:0 read_20 len 9
 ATGCATGCA
 +
-#---------
+---------

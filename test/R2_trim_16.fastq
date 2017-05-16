@@ -11,13 +11,13 @@ ATGCATGCATGC
 -
 ------------
 @instrument:run:flowcell:lane:1202:x:y 2:0:0:0 read_11 len 20
-ATGCATGCATGCATGCATGC
+ATGCATGCATGCATGC
 -
---------------------
+----------------
 @instrument:run:flowcell:lane:2101:x:y 2:0:0:0 read_13 len 19
-ATGCATGCATGCATGCATG
+ATGCATGCATGCATGC
 -
--------------------
+----------------
 @instrument:run:flowcell:lane:2202:x:y 2:0:0:0 read_19 len 13
 ATGCATGCATGCA
 -
