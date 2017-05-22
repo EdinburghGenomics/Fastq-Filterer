@@ -30,7 +30,7 @@ char** tiles_to_remove;
 
 static void _log(char* fmt_str, ...) {
     if (quiet) {
-        return ;
+        return;
     }
     
     time_t t = time(NULL);
@@ -44,6 +44,7 @@ static void _log(char* fmt_str, ...) {
     va_start(args, fmt_str);
     vprintf(fmt_str, args);
     va_end(args);
+    
 }
 
 
@@ -66,8 +67,7 @@ static char* readln(gzFile* f) {
      */
     
     int _block_size = block_size;
-    char* line;
-    line = malloc(sizeof (char) * _block_size);
+    char* line = malloc(sizeof (char) * _block_size);
     line[0] = '\0';
     
     do {
@@ -93,16 +93,12 @@ char* (*read_func)(gzFile*) = readln;
 
 
 static char* get_tile_id(char* fastq_header) {
-    char* hdr = malloc(sizeof (char) * strlen(fastq_header));
-    strcpy(hdr, fastq_header);  // strtok modifies the string passed to it, so use a copy
-    
     char* field;
-    field = strtok(hdr, ":");
+    field = strtok(fastq_header, ":");
     int i;
     for (i=0; i<4; i++) {
         field = strtok(NULL, ":");  // walk along the header 4 times to the tile ID
     }
-    free(hdr);
     return field;
 }
 
@@ -123,19 +119,25 @@ static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char
         return false;
     }
     
-    char* tile_id = get_tile_id(r1_header);
+    // get_tile_id will modify the string passed to it with strtok, so use a copy
+    char* _fq_header = malloc(sizeof (char) * (strlen(r1_header) + 1));
+    strcpy(_fq_header, r1_header);
+    char* tile_id = get_tile_id(_fq_header);
     int i = 0;
     
     char* comp = tiles_to_remove[i];
+    
+    bool ret_val = true;
     while (comp != NULL) {  // check for null terminator at end of remove_tiles
         if (strcmp(comp, tile_id) == 0) {
-            return false;
+            ret_val = false;
         }
         i++;
         comp = tiles_to_remove[i];
     }
     
-    return true;
+    free(_fq_header);
+    return ret_val;
 }
 
 
@@ -218,6 +220,16 @@ static int filter_fastqs() {
                 ret_val = 1;
             }
             
+            free(r1_header);
+            free(r1_seq);
+            free(r1_strand);
+            free(r1_qual);
+            
+            free(r2_header);
+            free(r2_seq);
+            free(r2_strand);
+            free(r2_qual);
+            
             gzclose(r1i);
             gzclose(r2i);
             fclose(r1o);
@@ -276,7 +288,7 @@ static void build_remove_tiles() {
         return;
     }
     
-    char* rm_tiles = malloc(sizeof (char) * strlen(remove_tiles));
+    char* rm_tiles = malloc(sizeof (char) * (strlen(remove_tiles) + 1));
     strcpy(rm_tiles, remove_tiles);  // use a copy for strtok
     
     int ntiles = 1;
@@ -299,6 +311,8 @@ static void build_remove_tiles() {
         i++;
     }
     tiles_to_remove[i] = NULL;  // set a null terminator
+    
+    free(rm_tiles);
 }
 
 
@@ -382,14 +396,15 @@ int main(int argc, char* argv[]) {
                 read_func = readln_unsafe;
                 break;
             case 's':
-                stats_file = malloc(sizeof optarg);
-                stats_file = optarg;
+                stats_file = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(stats_file, optarg);
                 break;
             case 't':
                 threshold = atoi(optarg);
                 break;
             case 'r':
-                remove_tiles = optarg;
+                remove_tiles = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(remove_tiles, optarg);
                 build_remove_tiles();
                 check_func = tile_check_read;
                 break;
@@ -404,20 +419,20 @@ int main(int argc, char* argv[]) {
                 include_func_r2 = trim_include_r2;
                 break;
             case 'i':
-                r1i_path = malloc(sizeof optarg);
-                r1i_path = optarg;
+                r1i_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r1i_path, optarg);
                 break;
             case 'j':
-                r2i_path = malloc(sizeof optarg);
-                r2i_path = optarg;
+                r2i_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r2i_path, optarg);
                 break;
             case 'o':
-                r1o_path = malloc(sizeof optarg);
-                r1o_path = optarg;
+                r1o_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r1o_path, optarg);
                 break;
             case 'p':
-                r2o_path = malloc(sizeof optarg);
-                r2o_path = optarg;
+                r2o_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r2o_path, optarg);
                 break;
             default:
                 exit(1);
