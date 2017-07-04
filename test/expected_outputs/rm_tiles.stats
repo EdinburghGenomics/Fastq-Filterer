@@ -1,0 +1,8 @@
+r1i inputs/R1.fastq.gz
+r1o R1_filtered.fastq
+r2i inputs/R2.fastq.gz
+r2o R2_filtered.fastq
+read_pairs_checked 20
+read_pairs_removed 16
+read_pairs_remaining 4
+remove_tiles 1102,2202

@@ -19,9 +19,10 @@
 #define block_size 2048
 #define unsafe_block_size 4096
 
-int threshold;
+int threshold = -1;
 bool quiet = false;
-char *r1i_path = NULL, *r2i_path = NULL, *r1o_path = NULL, *r2o_path = NULL, *stats_file = NULL;
+char *r1i_path = NULL, *r1o_path = NULL;
+char *r2i_path = NULL, *r2o_path = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 int trim_r1, trim_r2;
 char* remove_tiles;
@@ -298,8 +299,6 @@ static void build_remove_tiles() {
         comma = strchr(comma+1, ',');
     }
     
-    _log("Identified %i tiles to remove\n", ntiles);
-    
     tiles_to_remove = malloc(sizeof (char*) * (ntiles + 1));
     int i = 0;
     char* field;
@@ -311,36 +310,22 @@ static void build_remove_tiles() {
         i++;
     }
     tiles_to_remove[i] = NULL;  // set a null terminator
-    
     free(rm_tiles);
 }
 
 
-static void check_file_paths() {
-    if (r1i_path == NULL || r2i_path == NULL) exit(1);
-    
-    if (r1o_path == NULL) {
-        _log("No o1 argument given - deriving from i1\n");
-        r1o_path = build_output_path(r1i_path);
-    }
-    if (r2o_path == NULL) {
-        _log("No o2 argument given - deriving from i2\n");
-        r2o_path = build_output_path(r2i_path);
-    }
-    
-    _log("R1: %s -> %s\n", r1i_path, r1o_path);
-    _log("R2: %s -> %s\n", r2i_path, r2o_path);
-    _log("Filter threshold: %i\n", threshold);
-}
-
-
-static void output_stats() {
+static void output_stats(char* stats_file) {
     FILE* f = fopen(stats_file, "w");
     
     fprintf(
         f,
-        "r1i %s\nr2i %s\nr1o %s\nr2o %s\nread_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
-        r1i_path, r2i_path, r1o_path, r2o_path, read_pairs_checked, read_pairs_removed, read_pairs_remaining
+        "r1i %s\nr1o %s\nr2i %s\nr2o %s\n",
+        r1i_path, r1o_path, r2i_path, r2o_path
+    );
+    fprintf(
+        f,
+        "read_pairs_checked %i\nread_pairs_removed %i\nread_pairs_remaining %i\n",
+        read_pairs_checked, read_pairs_removed, read_pairs_remaining
     );
     
     if (trim_r1) {
@@ -378,6 +363,7 @@ int main(int argc, char* argv[]) {
         {0, 0, 0, 0}
     };
     int opt_idx = 0;
+    char* stats_file = NULL;
     
     while ((arg = getopt_long(argc, argv, "", args, &opt_idx)) != -1) {
         switch(arg) {
@@ -409,12 +395,10 @@ int main(int argc, char* argv[]) {
                 check_func = tile_check_read;
                 break;
             case 'l':
-                _log("Trimming R1 to %s\n", optarg);
                 trim_r1 = atoi(optarg);
                 include_func_r1 = trim_include_r1;
                 break;
             case 'm':
-                _log("Trimming R2 to %s\n", optarg);
                 trim_r2 = atoi(optarg);
                 include_func_r2 = trim_include_r2;
                 break;
@@ -439,17 +423,35 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    check_file_paths();
+    if (r1i_path == NULL || r2i_path == NULL || threshold == -1) {
+        printf("Missing required arguments: r1i, r2i, threshold\n");
+        exit(1);
+    }
+    
+    if (r1o_path == NULL) {
+        _log("No o1 argument given - deriving from i1\n");
+        r1o_path = build_output_path(r1i_path);
+    }
+    if (r2o_path == NULL) {
+        _log("No o2 argument given - deriving from i2\n");
+        r2o_path = build_output_path(r2i_path);
+    }
+
+    _log("R1: %s -> %s\n", r1i_path, r1o_path);
+    _log("R2: %s -> %s\n", r2i_path, r2o_path);
+    _log("Filter threshold: %i\n", threshold);
+    if (trim_r1) {_log("Trimming R1 to %i\n", trim_r1);}
+    if (trim_r2) {_log("Trimming R2 to %i\n", trim_r2);}
+    if (remove_tiles) {_log("Removing tiles: %s\n", remove_tiles);}
+    
     int exit_status = filter_fastqs();
     
-    _log(
-        "Checked %i read pairs, %i removed, %i remaining. Exit status %i\n",
-        read_pairs_checked, read_pairs_removed, read_pairs_remaining, exit_status
-    );
+    _log("Checked %i read pairs, %i removed, %i remaining. Exit status %i\n",
+         read_pairs_checked, read_pairs_removed, read_pairs_remaining, exit_status);
 
     if (stats_file != NULL) {
         _log("Writing stats file %s\n", stats_file);
-        output_stats();
+        output_stats(stats_file);
     }
     
     return exit_status;
