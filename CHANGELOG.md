@@ -1,5 +1,13 @@
 
-0.3 (unreleased)
+0.4 (unreleased)
+----------------
+- Nothing changed yet.
+
+0.3.1 (2017-05-23)
+------------------
+- Fixed memory allocation bug in tile filtering
+
+0.3 (2017-05-16)
 ----------------
 - Added `--remove_tiles`, which filters out reads with specific tile ids (Illumina-formatted headers only)
 - Added `--trim_r1` and `--trim_r2` for trimming reads down to a maximum length
