@@ -13,12 +13,14 @@
 
 int threshold = -1;
 bool quiet = false;
-char *r1i_path = NULL, *r1o_path = NULL;
-char *r2i_path = NULL, *r2o_path = NULL;
+char *r1i_path = NULL, *r1o_path = NULL, *r1f_path = NULL;
+char *r2i_path = NULL, *r2o_path = NULL, *r2f_path = NULL;
+char *remove_reads_path = NULL;
 int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 int trim_r1, trim_r2;
 char* remove_tiles;
 char** tiles_to_remove;
+char** reads_to_remove;
 
 
 static void _log(char* fmt_str, ...) {
@@ -85,6 +87,16 @@ static char* readln(gzFile* f) {
 char* (*read_func)(gzFile*) = readln;
 
 
+typedef struct {
+    char *header, *seq, *strand, *qual;
+} FastqRead;
+
+
+typedef struct {
+    FastqRead r1, r2;
+} FastqReadPair;
+
+
 static char* get_tile_id(char* fastq_header) {
     char* field;
     field = strtok(fastq_header, ":");
@@ -96,9 +108,12 @@ static char* get_tile_id(char* fastq_header) {
 }
 
 
+bool (**criteria)(FastqReadPair);
+int ncriteria = 0;
 
-static bool std_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
-    if ((strlen(r1_seq) > threshold) && (strlen(r2_seq) > threshold)) {
+
+static bool std_check_read(FastqReadPair read_pair) {
+    if ((strlen(read_pair.r1.seq) > threshold) && (strlen(read_pair.r2.seq) > threshold)) {
         return true;
     } else {
         return false;
@@ -106,16 +121,11 @@ static bool std_check_read(char* r1_header, char* r1_seq, char* r1_strand, char*
 }
 
 
-static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char* r1_qual, char* r2_header, char* r2_seq, char* r2_strand, char* r2_qual) {
-    int result = std_check_read(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual);
-    if (result == false) {
-        return false;
-    }
-    
+static bool tile_check_read(FastqReadPair read_pair) {
     // get_tile_id will modify the string passed to it with strtok, so use a copy
-    char* _fq_header = malloc(sizeof (char) * (strlen(r1_header) + 1));
-    strcpy(_fq_header, r1_header);
-    char* tile_id = get_tile_id(_fq_header);
+    char* _read_id = malloc(sizeof (char) * (strlen(read_pair.r1.header) + 1));
+    strcpy(_read_id, read_pair.r1.header);
+    char* tile_id = get_tile_id(_read_id);
     int i = 0;
     
     char* comp = tiles_to_remove[i];
@@ -129,50 +139,70 @@ static bool tile_check_read(char* r1_header, char* r1_seq, char* r1_strand, char
         comp = tiles_to_remove[i];
     }
     
-    free(_fq_header);
+    free(_read_id);
     return ret_val;
 }
 
 
-bool (*check_func)(char*, char*, char*, char*, char*, char*, char*, char*) = std_check_read;
-
-
-static void std_include(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
-    fputs(header, outfile);
-    fputs(seq, outfile);
-    fputs(strand, outfile);
-    fputs(qual, outfile);
-}
-
-
-static void _trim_include(char* header, char* seq, char* strand, char* qual, FILE* outfile, int trim_len) {
-    if (strlen(seq) > trim_len + 1) {  // add 1 here to compensate for \n at end of line...
-        seq[trim_len] = '\n';  // ...but 0-indexing means we don't need to add 1 here
-        seq[trim_len + 1] = '\0';
-        qual[trim_len] = '\n';
-        qual[trim_len + 1] = '\0';
+static bool id_check_read(FastqReadPair read_pair) {
+    char* _read_id = malloc(sizeof (char) * (strlen(read_pair.r1.header) + 1));
+    strcpy(_read_id, read_pair.r1.header);
+    
+    char* coord_information = strtok(_read_id, " ");
+    
+    int i = 0;
+    char* comp = reads_to_remove[i];
+    bool ret_val = true;
+    while(comp != NULL) {
+        if (strcmp(comp, coord_information) == 0) {
+            ret_val = false;
+        }
+        i++;
+        comp = reads_to_remove[i];
     }
-    std_include(header, seq, strand, qual, outfile);
-}
-
-static void trim_include_r1(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
-    _trim_include(header, seq, strand, qual, outfile, trim_r1);
-}
-
-
-static void trim_include_r2(char* header, char* seq, char* strand, char* qual, FILE* outfile) {
-    _trim_include(header, seq, strand, qual, outfile, trim_r2);
+    
+    free(_read_id);
+    return ret_val;
 }
 
 
-void (*include_func_r1)(char*, char*, char*, char*, FILE*) = std_include;
-void (*include_func_r2)(char*, char*, char*, char*, FILE*) = std_include;
+static void std_include(FastqRead read, FILE* outfile) {
+    fputs(read.header, outfile);
+    fputs(read.seq, outfile);
+    fputs(read.strand, outfile);
+    fputs(read.qual, outfile);
+}
+
+
+static void _trim_include(FastqRead read, FILE* outfile, int trim_len) {
+    if (strlen(read.seq) > trim_len + 1) {  // add 1 here to compensate for \n at end of line...
+        read.seq[trim_len] = '\n';  // ...but 0-indexing means we don't need to add 1 here
+        read.seq[trim_len + 1] = '\0';
+        read.qual[trim_len] = '\n';
+        read.qual[trim_len + 1] = '\0';
+    }
+    std_include(read, outfile);
+}
+
+static void trim_include_r1(FastqRead read, FILE* outfile) {
+    _trim_include(read, outfile, trim_r1);
+}
+
+
+static void trim_include_r2(FastqRead read, FILE* outfile) {
+    _trim_include(read, outfile, trim_r2);
+}
+
+
+void (*include_func_r1)(FastqRead, FILE*) = std_include;
+void (*include_func_r2)(FastqRead, FILE*) = std_include;
 
 
 static int filter_fastqs() {
     /*
-     Read two fastqs (R1.fastq, R2.fastq) entry by entry, check whether the R1 and R2 for each read
-     are both long enough, and output them to R1_filtered.fastq and R2_filtered.fastq if they are.
+     Read two fastqs, R1 and R2, entry by entry, checking whether the R1 and R2 for each read
+     are both long enough, and output them to Rx_filtered.fastq if they are. If not, output them to
+     Rx_filtered_reads.fastq.
      
      :input char* r1_path: Path to R1.fastq input file
      :input char* r1_filtered: Path to R1_filtered.fastq output file
@@ -184,79 +214,90 @@ static int filter_fastqs() {
     gzFile* r2i = gzopen(r2i_path, "r");
     FILE* r1o = fopen(r1o_path, "w");
     FILE* r2o = fopen(r2o_path, "w");
+    FILE* r1f = fopen(r1f_path, "w");
+    FILE* r2f = fopen(r2f_path, "w");
     
-    char* r1_header;
-    char* r1_seq;
-    char* r1_strand;
-    char* r1_qual;
-
-    char* r2_header;
-    char* r2_seq;
-    char* r2_strand;
-    char* r2_qual;
+    FastqReadPair read_pair;
     
     while (true) {
-        r1_header = read_func(r1i);  // @read_1 1
-        r1_seq = read_func(r1i);     // ATGCATGC
-        r1_strand = read_func(r1i);  // +
-        r1_qual = read_func(r1i);    // #--------
+        read_pair.r1.header = read_func(r1i);  // @read_1 1
+        read_pair.r1.seq = read_func(r1i);     // ATGCATGC
+        read_pair.r1.strand = read_func(r1i);  // +
+        read_pair.r1.qual = read_func(r1i);    // #--------
 
-        r2_header = read_func(r2i);  // @read_1 2
-        r2_seq = read_func(r2i);     // ATGCATGC
-        r2_strand = read_func(r2i);  // -
-        r2_qual = read_func(r2i);    // #--------
+        read_pair.r2.header = read_func(r2i);  // @read_1 2
+        read_pair.r2.seq = read_func(r2i);     // ATGCATGC
+        read_pair.r2.strand = read_func(r2i);  // -
+        read_pair.r2.qual = read_func(r2i);    // #--------
         
-        if (*r1_header == '\0' || *r2_header == '\0') {
+        if (*read_pair.r1.header == '\0' || *read_pair.r2.header == '\0') {
             int ret_val = 0;
-            if (*r1_header != *r2_header) {  // if either file is not finished
+            if (*read_pair.r1.header != *read_pair.r2.header) {  // if either file is not finished
                 _log("Input fastqs have differing numbers of reads, from line %i\n", read_pairs_checked * 4);
                 ret_val = 1;
             }
             
-            free(r1_header);
-            free(r1_seq);
-            free(r1_strand);
-            free(r1_qual);
+            free(read_pair.r1.header);
+            free(read_pair.r1.seq);
+            free(read_pair.r1.strand);
+            free(read_pair.r1.qual);
             
-            free(r2_header);
-            free(r2_seq);
-            free(r2_strand);
-            free(r2_qual);
+            free(read_pair.r2.header);
+            free(read_pair.r2.seq);
+            free(read_pair.r2.strand);
+            free(read_pair.r2.qual);
             
             gzclose(r1i);
             gzclose(r2i);
             fclose(r1o);
             fclose(r2o);
+            fclose(r1f);
+            fclose(r2f);
 
             return ret_val;
 
-        } else if (check_func(r1_header, r1_seq, r1_strand, r1_qual, r2_header, r2_seq, r2_strand, r2_qual) == true) {
-            // include reads
-            read_pairs_checked++;
-            read_pairs_remaining++;
-            
-            include_func_r1(r1_header, r1_seq, r1_strand, r1_qual, r1o);
-            include_func_r2(r2_header, r2_seq, r2_strand, r2_qual, r2o);
         } else {
-            // exclude reads
+            bool read_included = true;
+            int i;
+            for (i=0; i<ncriteria + 1; i++) {
+                bool (*func)(FastqReadPair) = criteria[i];
+                //if (criteria[i](read_pair) == false) {
+                if (func(read_pair) == false) {
+                    read_included = false;
+                    //break;
+                }
+            }
+            
             read_pairs_checked++;
-            read_pairs_removed++;
+            if (read_included == true) {
+                // include reads
+                read_pairs_remaining++;
+            
+                include_func_r1(read_pair.r1, r1o);
+                include_func_r2(read_pair.r2, r2o);
+            } else {
+                // exclude reads
+                read_pairs_removed++;
+                
+                std_include(read_pair.r1, r1f);
+                std_include(read_pair.r2, r2f);
+            }
         }
         
-        free(r1_header);
-        free(r1_seq);
-        free(r1_strand);
-        free(r1_qual);
+        free(read_pair.r1.header);
+        free(read_pair.r1.seq);
+        free(read_pair.r1.strand);
+        free(read_pair.r1.qual);
         
-        free(r2_header);
-        free(r2_seq);
-        free(r2_strand);
-        free(r2_qual);
+        free(read_pair.r2.header);
+        free(read_pair.r2.seq);
+        free(read_pair.r2.strand);
+        free(read_pair.r2.qual);
     }
 }
 
 
-static char* build_output_path(char* input_path) {
+static char* build_output_path(char* input_path, char* new_extension) {
     /*
      Convert, e.g, basename.fastq to basename_filtered.fastq. Used when output fastq paths are not specified.
      */
@@ -268,10 +309,10 @@ static char* build_output_path(char* input_path) {
     }
     
     size_t basename_len = strlen(input_path) - file_ext_len;
-    char* output_path = malloc(sizeof (char) * (basename_len + 15));  // _filtered.fastq
+    char* output_path = malloc(sizeof (char) * (basename_len + strlen(new_extension)));
     strncpy(output_path, input_path, basename_len);
     output_path[basename_len] = '\0';
-    strcat(output_path, "_filtered.fastq");
+    strcat(output_path, new_extension);
     return output_path;
 }
 
@@ -306,6 +347,30 @@ static void build_remove_tiles() {
 }
 
 
+static void build_remove_reads() {
+    if (remove_reads_path == NULL) {
+        return;
+    }
+    
+    gzFile* rm_reads = gzopen(remove_reads_path, "r");
+    reads_to_remove = malloc(sizeof (char*));
+    int i = 0;
+    
+    while (true) {
+        char* line = readln(rm_reads);
+        if (line == NULL || *line == '\0') {
+            return;
+        }
+        
+        char* read_id = strtok(line, " ");
+        reads_to_remove = realloc(reads_to_remove, sizeof (char*) * (i + 1));
+        reads_to_remove[i] = malloc(sizeof (char) * strlen(line));
+        strcpy(reads_to_remove[i], read_id);
+        i++;
+    }
+}
+
+
 static void output_stats(char* stats_file) {
     FILE* f = fopen(stats_file, "w");
     
@@ -334,81 +399,103 @@ static void output_stats(char* stats_file) {
 }
 
 
-
 int main(int argc, char* argv[]) {
     int arg;
     
     static struct option args[] = {
-        {"help", no_argument, 0, 'h'},
-        {"version", no_argument, 0, 'v'},
-        {"quiet", no_argument, 0, 'q'},
-        {"unsafe", no_argument, 0, 'f'},
-        {"stats_file", required_argument, 0, 's'},
-        {"threshold", required_argument, 0, 't'},
-        {"remove_tiles", required_argument, 0, 'r'},
-        {"trim_r1", required_argument, 0, 'l'},
-        {"trim_r2", required_argument, 0, 'm'},
-        {"i1", required_argument, 0, 'i'},
-        {"i2", required_argument, 0, 'j'},
-        {"o1", required_argument, 0, 'o'},
-        {"o2", required_argument, 0, 'p'},
+        {"help", no_argument, 0, 1},
+        {"version", no_argument, 0, 2},
+        {"quiet", no_argument, 0, 3},
+        {"unsafe", no_argument, 0, 4},
+        {"stats_file", required_argument, 0, 5},
+        {"threshold", required_argument, 0, 6},
+        {"remove_tiles", required_argument, 0, 7},
+        {"remove_reads", required_argument, 0, 8},
+        {"trim_r1", required_argument, 0, 9},
+        {"trim_r2", required_argument, 0, 10},
+        {"i1", required_argument, 0, 11},
+        {"i2", required_argument, 0, 12},
+        {"o1", required_argument, 0, 13},
+        {"o2", required_argument, 0, 14},
+        {"f1", required_argument, 0, 15},
+        {"f2", required_argument, 0, 16},
         {0, 0, 0, 0}
     };
     int opt_idx = 0;
     char* stats_file = NULL;
+    criteria = malloc(sizeof (bool(*)(FastqReadPair)) * (ncriteria + 1));
+    criteria[ncriteria] = std_check_read;
     
     while ((arg = getopt_long(argc, argv, "", args, &opt_idx)) != -1) {
         switch(arg) {
-            case 'h':
+            case 1:
                 printf(USAGE);
                 exit(0);
                 break;
-            case 'v':
+            case 2:
                 printf("%s\n", VERSION);
                 exit(0);
                 break;
-            case 'q':
+            case 3:
                 quiet = true;
                 break;
-            case 'f':
+            case 4:
                 read_func = readln_unsafe;
                 break;
-            case 's':
+            case 5:
                 stats_file = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(stats_file, optarg);
                 break;
-            case 't':
+            case 6:
                 threshold = atoi(optarg);
                 break;
-            case 'r':
+            case 7:
                 remove_tiles = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(remove_tiles, optarg);
                 build_remove_tiles();
-                check_func = tile_check_read;
+                ncriteria++;
+                criteria = realloc(criteria, sizeof (bool(*)(FastqReadPair)) * (ncriteria + 1));
+                criteria[ncriteria] = tile_check_read;
                 break;
-            case 'l':
+            case 8:
+                remove_reads_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(remove_reads_path, optarg);
+                build_remove_reads();
+                ncriteria++;
+                criteria = realloc(criteria, sizeof (bool(*)(FastqReadPair)) * (ncriteria + 1));
+                criteria[ncriteria] = id_check_read;
+                break;
+            case 9:
                 trim_r1 = atoi(optarg);
                 include_func_r1 = trim_include_r1;
                 break;
-            case 'm':
+            case 10:
                 trim_r2 = atoi(optarg);
                 include_func_r2 = trim_include_r2;
                 break;
-            case 'i':
+            case 11:
                 r1i_path = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(r1i_path, optarg);
                 break;
-            case 'j':
+            case 12:
                 r2i_path = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(r2i_path, optarg);
                 break;
-            case 'o':
+            case 13:
                 r1o_path = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(r1o_path, optarg);
                 break;
-            case 'p':
+            case 14:
                 r2o_path = malloc(sizeof (char) * (strlen(optarg) + 1));
                 strcpy(r2o_path, optarg);
+                break;
+            case 15:
+                r1f_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r1f_path, optarg);
+                break;
+            case 16:
+                r2f_path = malloc(sizeof (char) * (strlen(optarg) + 1));
+                strcpy(r2f_path, optarg);
                 break;
             default:
                 exit(1);
@@ -422,19 +509,33 @@ int main(int argc, char* argv[]) {
     
     if (r1o_path == NULL) {
         _log("No o1 argument given - deriving from i1\n");
-        r1o_path = build_output_path(r1i_path);
+        r1o_path = build_output_path(r1i_path, "_filtered.fastq");
     }
     if (r2o_path == NULL) {
         _log("No o2 argument given - deriving from i2\n");
-        r2o_path = build_output_path(r2i_path);
+        r2o_path = build_output_path(r2i_path, "_filtered.fastq");
+    }
+    
+    if (r1f_path == NULL) {
+        _log("No f1 argument given - deriving from i1\n");
+        r1f_path = build_output_path(r1i_path, "_filtered_reads.fastq");
+    }
+    if (r2f_path == NULL) {
+        _log("No f2 argument given - deriving from i1\n");
+        r2f_path = build_output_path(r2i_path, "_filtered_reads.fastq");
     }
 
-    _log("R1: %s -> %s\n", r1i_path, r1o_path);
-    _log("R2: %s -> %s\n", r2i_path, r2o_path);
+    _log("R1 input: %s\n", r1i_path);
+    _log("R2 input: %s\n", r2i_path);
+    _log("R1 output: %s\n", r1o_path);
+    _log("R2 output: %s\n", r2o_path);
+    _log("R1 filtered reads: %s\n", r1f_path);
+    _log("R2 filtered reads: %s\n", r2f_path);
     _log("Filter threshold: %i\n", threshold);
     if (trim_r1) {_log("Trimming R1 to %i\n", trim_r1);}
     if (trim_r2) {_log("Trimming R2 to %i\n", trim_r2);}
     if (remove_tiles) {_log("Removing tiles: %s\n", remove_tiles);}
+    _log("Matching %i criteria\n", ncriteria + 1);
     
     int exit_status = filter_fastqs();
     

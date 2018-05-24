@@ -6,10 +6,6 @@ ATGCATGCATGCATGC
 ATGCATGCATG
 -
 -----------
-@instrument:run:flowcell:lane:1102:2:1 2:0:0:0 read_07 len 12
-ATGCATGCATGC
--
-------------
 @instrument:run:flowcell:lane:1202:2:1 2:0:0:0 read_11 len 20
 ATGCATGCATGCATGCATGC
 -
@@ -18,10 +14,6 @@ ATGCATGCATGCATGCATGC
 ATGCATGCATGCATGCATG
 -
 -------------------
-@instrument:run:flowcell:lane:2202:2:1 2:0:0:0 read_19 len 13
-ATGCATGCATGCA
--
--------------
 @instrument:run:flowcell:lane:2202:2:2 2:0:0:0 read_20 len 9
 ATGCATGCA
 -
