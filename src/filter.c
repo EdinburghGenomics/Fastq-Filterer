@@ -309,7 +309,7 @@ static char* build_output_path(char* input_path, char* new_extension) {
     }
     
     size_t basename_len = strlen(input_path) - file_ext_len;
-    char* output_path = malloc(sizeof (char) * (basename_len + strlen(new_extension)));
+    char* output_path = malloc(sizeof (char) * (basename_len + strlen(new_extension) + 1));
     strncpy(output_path, input_path, basename_len);
     output_path[basename_len] = '\0';
     strcat(output_path, new_extension);
@@ -359,6 +359,7 @@ static void build_remove_reads() {
     while (true) {
         char* line = readln(rm_reads);
         if (line == NULL || *line == '\0') {
+            reads_to_remove[i] = NULL;  // set a null terminator
             return;
         }
         
@@ -376,8 +377,8 @@ static void output_stats(char* stats_file) {
     
     fprintf(
         f,
-        "r1i %s\nr1o %s\nr2i %s\nr2o %s\n",
-        r1i_path, r1o_path, r2i_path, r2o_path
+        "r1i %s\nr1o %s\nr2i %s\nr2o %s\nr1f %s\nr2f %s\n",
+        r1i_path, r1o_path, r2i_path, r2o_path, r1f_path, r2f_path
     );
     fprintf(
         f,
@@ -393,6 +394,9 @@ static void output_stats(char* stats_file) {
     }
     if (remove_tiles) {
         fprintf(f, "remove_tiles %s\n", remove_tiles);
+    }
+    if (remove_reads_path) {
+        fprintf(f, "remove_reads %s\n", remove_reads_path);
     }
     
     fclose(f);
@@ -521,7 +525,7 @@ int main(int argc, char* argv[]) {
         r1f_path = build_output_path(r1i_path, "_filtered_reads.fastq");
     }
     if (r2f_path == NULL) {
-        _log("No f2 argument given - deriving from i1\n");
+        _log("No f2 argument given - deriving from i2\n");
         r2f_path = build_output_path(r2i_path, "_filtered_reads.fastq");
     }
 

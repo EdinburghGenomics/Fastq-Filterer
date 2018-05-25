@@ -15,7 +15,7 @@ exit_status=0
 
 function compare {
     echo "Comparing $1 and $2"
-    sdiff $1 $2
+    diff $1 $2
     x=$?
     echo "Exit status: $x"
     exit_status=$[$exit_status+$x]
@@ -65,7 +65,8 @@ check_outputs rm_tiles_
 
 
 echo "Testing read removal"
-$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads.txt --stats_file expected_outputs/rm_reads.stats
+$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads.txt --stats_file inputs/fastq_filterer.stats
+compare inputs/fastq_filterer.stats expected_outputs/rm_reads.stats
 check_outputs rm_reads_
 
 
