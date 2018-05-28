@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <stdbool.h>
+#include "uthash.h"
 #include "filter.h"
 
 #define block_size 2048
@@ -20,7 +21,6 @@ int read_pairs_checked = 0, read_pairs_removed = 0, read_pairs_remaining = 0;
 int trim_r1, trim_r2;
 char* remove_tiles;
 char** tiles_to_remove;
-char** reads_to_remove;
 
 
 static void _log(char* fmt_str, ...) {
@@ -144,23 +144,26 @@ static bool tile_check_read(FastqReadPair read_pair) {
 }
 
 
+typedef struct {
+    const char* key;
+    UT_hash_handle hh;
+} HashTable;
+
+HashTable* reads_to_remove;
+HashTable* mask;
+
+
 static bool id_check_read(FastqReadPair read_pair) {
     char* _read_id = malloc(sizeof (char) * (strlen(read_pair.r1.header) + 1));
     strcpy(_read_id, read_pair.r1.header);
     
     char* coord_information = strtok(_read_id, " ");
     
-    int i = 0;
-    char* comp = reads_to_remove[i];
+    HASH_FIND_STR(reads_to_remove, coord_information, mask);
     bool ret_val = true;
-    while(comp != NULL) {
-        if (strcmp(comp, coord_information) == 0) {
-            ret_val = false;
-        }
-        i++;
-        comp = reads_to_remove[i];
+    if (mask) {
+        ret_val = false;
     }
-    
     free(_read_id);
     return ret_val;
 }
@@ -353,20 +356,21 @@ static void build_remove_reads() {
     }
     
     gzFile* rm_reads = gzopen(remove_reads_path, "r");
-    reads_to_remove = malloc(sizeof (char*));
+    reads_to_remove = NULL;
+    mask = NULL;
     int i = 0;
     
     while (true) {
         char* line = readln(rm_reads);
         if (line == NULL || *line == '\0') {
-            reads_to_remove[i] = NULL;  // set a null terminator
+            gzclose(rm_reads);
             return;
         }
         
         char* read_id = strtok(line, " ");
-        reads_to_remove = realloc(reads_to_remove, sizeof (char*) * (i + 1));
-        reads_to_remove[i] = malloc(sizeof (char) * strlen(line));
-        strcpy(reads_to_remove[i], read_id);
+        mask = (HashTable *)malloc(sizeof (*mask));
+        mask->key = read_id;
+        HASH_ADD_KEYPTR(hh, reads_to_remove, mask->key, strlen(mask->key), mask);
         i++;
     }
 }
@@ -539,6 +543,7 @@ int main(int argc, char* argv[]) {
     if (trim_r1) {_log("Trimming R1 to %i\n", trim_r1);}
     if (trim_r2) {_log("Trimming R2 to %i\n", trim_r2);}
     if (remove_tiles) {_log("Removing tiles: %s\n", remove_tiles);}
+    if (remove_reads_path) {_log("Removing reads in: %s\n", remove_reads_path);}
     _log("Matching %i criteria\n", ncriteria + 1);
     
     int exit_status = filter_fastqs();
