@@ -76,3 +76,4 @@ compare inputs/fastq_filterer.stats expected_outputs/trim_reads.stats
 check_outputs trim_reads_
 
 echo "Finished tests with exit status $exit_status"
+exit $exit_status

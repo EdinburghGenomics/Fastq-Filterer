@@ -359,19 +359,37 @@ static void build_remove_reads() {
     reads_to_remove = NULL;
     mask = NULL;
     int i = 0;
+    char* matchable_element;
+    char* read_id;
+    char* line;
     
     while (true) {
-        char* line = readln(rm_reads);
+        line = readln(rm_reads);
         if (line == NULL || *line == '\0') {
             gzclose(rm_reads);
             return;
         }
+
+        // match up to the first space
+        char* space_match = strchr(line, ' ');
+        if (space_match == NULL) {
+            read_id = strtok(line, "\n");
+        } else {
+            read_id = strtok(line, " ");
+        }
         
-        char* read_id = strtok(line, " ");
-        mask = (HashTable *)malloc(sizeof (*mask));
-        mask->key = read_id;
-        HASH_ADD_KEYPTR(hh, reads_to_remove, mask->key, strlen(mask->key), mask);
-        i++;
+        if (read_id != NULL) {  // this can happen if there's a blank line in the file, i.e. '\n'
+            matchable_element = malloc(sizeof (char) * strlen(read_id) + 2);  // include the @ and \0
+            strcpy(matchable_element, "@");
+            strcat(matchable_element, read_id);
+            matchable_element[strlen(matchable_element)] = '\0';
+
+            mask = malloc(sizeof (*mask));
+            mask->key = matchable_element;
+            HASH_ADD_KEYPTR(hh, reads_to_remove, mask->key, strlen(mask->key), mask);
+            i++;
+        }
+        free(line);
     }
 }
 
@@ -408,6 +426,18 @@ static void output_stats(char* stats_file) {
 
 
 int main(int argc, char* argv[]) {
+    
+    /*char* s = malloc(sizeof (char) * 6);
+    s = "this\n";
+    char* t = malloc(sizeof (char) * 12);
+    t = "that other\n";
+    char* read_id = strtok(s, " ");
+    printf("%s\n", read_id);
+    char* read_id2 = strtok(t, " ");
+    printf("%s\n", read_id2);
+    
+    return 0;*/
+    
     int arg;
     
     static struct option args[] = {
