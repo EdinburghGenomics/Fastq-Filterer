@@ -1,0 +1,10 @@
+r1i inputs/R1.fastq.gz
+r1o R1_filtered.fastq
+r2i inputs/R2.fastq.gz
+r2o R2_filtered.fastq
+r1f R1_filtered_reads.fastq
+r2f R2_filtered_reads.fastq
+read_pairs_checked 20
+read_pairs_removed 15
+read_pairs_remaining 5
+remove_reads inputs/rm_reads.txt
