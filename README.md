@@ -17,6 +17,9 @@ which is faster, but will also chop any lines longer than 4096 characters - you 
 A file can also be output containing summary information on the input/output files and reads checked and
 filtered.
 
+Hash tables are implemented in this project via [uthash.h](https://github.com/troydhanson/uthash), an
+unmodified copy of which is included in `src`.
+
 
 ## Installation
 To set up the filterer, simply compile it in place via the Makefile:

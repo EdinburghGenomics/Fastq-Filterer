@@ -1,7 +1,10 @@
 
-0.4 (unreleased)
+0.4 (2018-06-04)
 ----------------
-- Nothing changed yet.
+- Added `--remove_reads` option
+- Redirecting filtered reads to `--f1` and `--f2` files
+- Added uthash.h
+- Test improvements
 
 0.3.1 (2017-05-23)
 ------------------

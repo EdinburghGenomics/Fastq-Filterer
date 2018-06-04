@@ -61,6 +61,16 @@ _compare $scriptpath/fastq_filterer.stats $scriptpath/remove_tiles.stats
 echo "______________________"
 
 
+echo "Testing empty read removal"
+touch inputs/rm_reads_empty.txt
+$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads_empty.txt
+check_outputs  # no reads to remove, so output should be just like the 'compressed' test
+
+echo "Testing nonexistent read removal"
+$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads_nonexistent.txt
+check_outputs
+
+
 echo "Testing read trimming"
 $filterer --i1 $scriptpath/compressed_R1.fastq.gz --i2 $scriptpath/compressed_R2.fastq.gz --o1 $r1o --o2 $r2o --threshold 9 --trim_r1 14 --trim_r2 16 --stats_file $scriptpath/fastq_filterer.stats
 _compare $r1o $scriptpath/R1_trim_14.fastq
