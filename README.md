@@ -43,18 +43,20 @@ Other arguments can also be passed:
 - `--stats_file <stats_file>`: write a file summarising the read pairs checked and removed
 - `--unsafe`: use a simpler, faster but less safe read function
 - `--remove_tiles <tile1,tile2,tile3...>`: comma-separated list of tile ids to remove regardless of length
+- `--remove_reads <rm_reads.txt>`: file containing specific read IDs to filter
 - `--trim_r1 <max_len>`: trim all reads for r1.fastq to a maximum length
 - `--trim_r2 <max_len>`: as above for r2.fastq
 
 
 ## Input files
-A few assumptions are made about the input fastqs:
+A few assumptions are made about the input files:
 - It is assumed that both input fastqs have the same number of reads, and that they are both in the same
-order. Therefore, a read starting on line `n` in r1.fastq should correspond to the read starting on line `n`
-in r2.fastq
+  order. Therefore, a read starting on line `n` in r1.fastq should correspond to the read starting on line `n`
+  in r2.fastq
 - If using `--remove_tiles`, Fastq-Filterer parses the flowcell tile ID from the fastq read headers, so it is
-assumed that the read headers are in standard Illumina format:
-
-    @instrument_id:run_id:flowcell_id:lane:tile_id:x:y read_number:filter_flag:0:idx_seq
-
-For more information, see Illumina's bcl2fastq docs.
+  assumed that the read headers are in standard Illumina format:
+  `@instrument_id:run_id:flowcell_id:lane:tile_id:x:y read_number:filter_flag:0:idx_seq`. For more
+  information, see Illumina's bcl2fastq docs.
+- Reads specified in `--remove_reads` should not contain the leading `@` symbol, as this is part of the fastq
+  specification and not the read ID. To allow for R1/R2 ID differences in Illumina-formatted fastqs, IDs are
+  only matched up to the first space.

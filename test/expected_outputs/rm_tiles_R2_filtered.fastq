@@ -1,0 +1,16 @@
+@instrument:run:flowcell:lane:1101:1:1 2:0:0:0 read_01 len 16
+ATGCATGCATGCATGC
+-
+----------------
+@instrument:run:flowcell:lane:1101:2:1 2:0:0:0 read_03 len 11
+ATGCATGCATG
+-
+-----------
+@instrument:run:flowcell:lane:1202:2:1 2:0:0:0 read_11 len 20
+ATGCATGCATGCATGCATGC
+-
+--------------------
+@instrument:run:flowcell:lane:2101:1:1 2:0:0:0 read_13 len 19
+ATGCATGCATGCATGCATG
+-
+-------------------

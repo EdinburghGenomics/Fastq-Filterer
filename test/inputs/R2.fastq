@@ -1,0 +1,80 @@
+@instrument:run:flowcell:lane:1101:1:1 2:0:0:0 read_01 len 16
+ATGCATGCATGCATGC
+-
+----------------
+@instrument:run:flowcell:lane:1101:1:2 2:0:0:0 read_02 len 5
+ATGCA
+-
+-----
+@instrument:run:flowcell:lane:1101:2:1 2:0:0:0 read_03 len 11
+ATGCATGCATG
+-
+-----------
+@instrument:run:flowcell:lane:1101:2:2 2:0:0:0 read_04 len 1
+A
+-
+-
+@instrument:run:flowcell:lane:1102:1:1 2:0:0:0 read_05 len 15
+ATGCATGCATGCATG
+-
+---------------
+@instrument:run:flowcell:lane:1102:1:2 2:0:0:0 read_06 len 6
+ATGCAT
+-
+------
+@instrument:run:flowcell:lane:1102:2:1 2:0:0:0 read_07 len 12
+ATGCATGCATGC
+-
+------------
+@instrument:run:flowcell:lane:1102:2:2 2:0:0:0 read_08 len 4
+ATGC
+-
+----
+@instrument:run:flowcell:lane:1201:1:1 2:0:0:0 read_09 len 10
+ATGCATGCAT
+-
+----------
+@instrument:run:flowcell:lane:1201:1:2 2:0:0:0 read_10 len 18
+ATGCATGCATGCATGCAT
+-
+------------------
+@instrument:run:flowcell:lane:1202:2:1 2:0:0:0 read_11 len 20
+ATGCATGCATGCATGCATGC
+-
+--------------------
+@instrument:run:flowcell:lane:1202:2:2 2:0:0:0 read_12 len 2
+AT
+-
+--
+@instrument:run:flowcell:lane:2101:1:1 2:0:0:0 read_13 len 19
+ATGCATGCATGCATGCATG
+-
+-------------------
+@instrument:run:flowcell:lane:2101:1:2 2:0:0:0 read_14 len 8
+ATGCATGC
+-
+--------
+@instrument:run:flowcell:lane:2102:2:1 2:0:0:0 read_15 len 3
+ATG
+-
+---
+@instrument:run:flowcell:lane:2102:2:2 2:0:0:0 read_16 len 17
+ATGCATGCATGCATGCA
+-
+-----------------
+@instrument:run:flowcell:lane:2201:1:1 2:0:0:0 read_17 len 7
+ATGCATG
+-
+-------
+@instrument:run:flowcell:lane:2201:1:2 2:0:0:0 read_18 len 14
+ATGCATGCATGCAT
+-
+--------------
+@instrument:run:flowcell:lane:2202:2:1 2:0:0:0 read_19 len 13
+ATGCATGCATGCA
+-
+-------------
+@instrument:run:flowcell:lane:2202:2:2 2:0:0:0 read_20 len 9
+ATGCATGCA
+-
+---------

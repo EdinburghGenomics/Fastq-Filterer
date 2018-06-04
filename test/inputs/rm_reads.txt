@@ -1,0 +1,3 @@
+instrument:run:flowcell:lane:1102:2:1
+instrument:run:flowcell:lane:2202:2:1 1:0:0:0 read_19 len 14  # this bit doesn't actually match, but that's okay because we only match up to the space
+
