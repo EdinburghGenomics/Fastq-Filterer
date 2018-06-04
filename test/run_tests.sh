@@ -69,6 +69,15 @@ $filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/
 compare inputs/fastq_filterer.stats expected_outputs/rm_reads.stats
 check_outputs rm_reads_
 
+echo "Testing empty read removal"
+touch inputs/rm_reads_empty.txt
+$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads_empty.txt
+check_outputs  # no reads to remove, so output should be just like the 'compressed' test
+
+echo "Testing nonexistent read removal"
+$filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --remove_reads inputs/rm_reads_nonexistent.txt
+check_outputs
+
 
 echo "Testing read trimming"
 $filterer --i1 inputs/R1.fastq.gz --i2 inputs/R2.fastq.gz --trim_r1 14 --trim_r2 16 --stats_file inputs/fastq_filterer.stats
